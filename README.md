@@ -1,14 +1,13 @@
 <h1 align="center"> MinimēGPT </h1>
 
-<p align="center"> An isolated writing environment, just like the good old times. </p>
+<p align="center"> A blank page, an energy drink, and you, just like the good old times. </p>
 
 <img src="https://www.hindustantimes.com/static-content/1y/2024/ghibli/assets//YusnTOKCjx/58703d343b997fdfde3bc0fb8c80616b32e6fb3d_hq.gif" width="2000">
 
 <h3> TLDR; What is <b>MinimēGPT</b>?</h3>
 <ul>
-  <li>Automation tool for quickly building tailor-made resumes for applying to different domains or roles</li>
-  <li>Maintains complete database of profile and dynamically generates resume based on user's selections</li>
-  <li>Has a user authentication system, keeps records of all resumes made in the past and allows for browsing</li>
+  <li>An isolated writing environment that does not allow for AI interference.</li>
+  <li>A software for all your writing, and <i>only</i> your writing.</li>
 </ul>
 
 ### Why'd I build it?
