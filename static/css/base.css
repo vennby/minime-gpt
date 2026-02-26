@@ -1,6 +1,19 @@
+:root {
+  --font-times-new-roman: "Times New Roman", Times, serif;
+  --font-segoe-ui: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-ubuntu: "Ubuntu", sans-serif;
+  --font-futura: Futura, "Trebuchet MS", Arial, sans-serif;
+  --font-courier-new: "Courier New", Courier, monospace;
+  --font-georgia: Georgia, serif;
+  --font-trebuchet-ms: "Trebuchet MS", sans-serif;
+  --font-verdana: Verdana, Geneva, sans-serif;
+  --font-lexend: "Lexend", sans-serif;
+  --font-arial: Arial, Helvetica, sans-serif;
+}
+
 body,
 html {
-  font-family: "Segoe UI";
+  font-family: var(--font-segoe-ui);
   margin: 0;
   padding: 0;
 }
