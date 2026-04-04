@@ -6,11 +6,17 @@
 
 <p align="justify"> MinimēGPT is a way of going back to the time when writing involved a blank page, an energy drink, and just your brain. It's an isolated writing environment that allows for pure, old-school research, nurtures critical thinking, and preserves your intellectual integrity. </p>
 
+<p align="justify"> MinimēGPT, as suggested by the name, is a <b>minimal writing platform</b> with guarded writing sessions that actively work to block distractions and AI interference with your creative processes.</p>
+
 ### Features offered by MinimēGPT
 
-- [x] this
+- [x] Focus writing mode with fullscreen session lock behavior
 - [x] Uninterrupted Browsing, like how it always was!
 - [x] Popular paper formats available inbuilt!
 - [ ] Your brainstorming, late-night sessions, and all logged!
 - [ ] asd
 - [ ] asd
+
+### Notes
+
+- Browser-only fullscreen locks are best-effort by design; OS/browser security policies can still override them.
