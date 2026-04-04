@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}MinimēGPT{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="page-shell">
+  <section class="error-card">
+    <h1>Something went wrong</h1>
+    <p>{{ error }}</p>
+    <a href="{{ url_for('landing') }}" class="btn primary">Go back home</a>
+  </section>
+</main>
+{% endblock %}

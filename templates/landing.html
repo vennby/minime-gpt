@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}MinimēGPT{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="page-shell">
+  <section class="hero-card">
+    <p class="eyebrow">Academic writing platform</p>
+    <h1>Write without AI interference.</h1>
+    <p class="lead">Distraction-less writing sessions with fullscreen enforcement and AI-blocking technology for academic integrity.</p>
+
+    <div class="actions">
+      {% if current_user %}
+      <a class="btn primary" href="{{ url_for('dashboard') }}">Go to dashboard</a>
+      {% else %}
+      <a class="btn primary" href="{{ url_for('login') }}">Log in</a>
+      <a class="btn secondary" href="{{ url_for('register') }}">Create account</a>
+      {% endif %}
+    </div>
+
+    <ul class="feature-list">
+      <li><strong>Fullscreen Lock:</strong> Once a session starts, you can't exit until you end it</li>
+      <li><strong>AI Blocking:</strong> Automatic detection and blocking of AI websites (ChatGPT, Claude, etc.)</li>
+      <li><strong>Distraction-Free:</strong> Minimal UI, focused on writing</li>
+      <li><strong>Auto-Save:</strong> Your work is saved automatically every few seconds</li>
+    </ul>
+  </section>
+</main>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}MinimēGPT{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="page-shell dashboard-shell">
+  <section class="dashboard-head">
+    <div>
+      <p class="eyebrow">Workspace</p>
+      <h1>{{ user.name }}'s writing projects</h1>
+    </div>
+    <form method="post" action="{{ url_for('create_project') }}" class="create-form">
+      <input name="title" type="text" placeholder="New project title" maxlength="160" required>
+      <button class="btn primary" type="submit">New project</button>
+    </form>
+  </section>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-wrap">
+      {% for category, message in messages %}
+      <p class="flash {{ category }}">{{ message }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <section class="project-grid">
+    {% if projects %}
+      {% for project in projects %}
+      <article class="project-card">
+        <h2>{{ project.title }}</h2>
+        <p class="meta">Updated {{ project.updated_at.strftime('%b %d, %Y at %H:%M') }}</p>
+        <div class="preview">{{ project.content[:120] }}{% if project.content|length > 120 %}...{% endif %}</div>
+        <a class="btn primary" href="{{ url_for('write_project', project_id=project.id) }}">Start writing session</a>
+      </article>
+      {% endfor %}
+    {% else %}
+      <article class="project-card empty">
+        <h2>No projects yet</h2>
+        <p>Create your first writing project to begin a guarded session.</p>
+      </article>
+    {% endif %}
+  </section>
+
+  <footer class="dashboard-footer">
+    <a href="{{ url_for('logout') }}" class="btn secondary">Log out</a>
+  </footer>
+</main>
+{% endblock %}

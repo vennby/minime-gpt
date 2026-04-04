@@ -1,432 +1,422 @@
-// Page constants
-const PAGE_WIDTH = 850;
-const PAGE_HEIGHT = 1100;
-const CONTENT_HEIGHT = PAGE_HEIGHT - 80; // 1020px usable
+/**
+ * MinimēGPT Writer Controller
+ * Manages writing sessions with fullscreen lock and AI blocking
+ */
 
-// Paste tracking configuration
-const PASTE_THRESHOLD = 500; // Characters to flag as "large"
-const PASTE_HISTORY_LIMIT = 50; // Keep last 50 pastes in history
+document.addEventListener("DOMContentLoaded", () => {
+  const project = window.MINIME_PROJECT || null;
+  if (!project) return;
 
-// Paste tracking state
-let pasteHistory = [];
-let lastSelectionLength = 0;
-let lastContentLength = 0;
-let pasteStatsPanel = null;
-let lastPasteProcessed = false; // Flag to prevent double-counting
+  // DOM Elements
+  const editor = document.getElementById("editor");
+  const projectTitle = document.getElementById("projectTitle");
+  const topbar = document.getElementById("topbar");
+  const statusIndicator = document.getElementById("statusIndicator");
+  const metricsBar = document.getElementById("metricsBar");
+  const lockOverlay = document.getElementById("lockOverlay");
+  const startSessionBtn = document.getElementById("startSessionBtn");
+  const endSessionBtn = document.getElementById("endSessionBtn");
+  const warningPanel = document.getElementById("warningPanel");
+  const warningMessage = document.getElementById("warningMessage");
+  const wordCount = document.getElementById("wordCount");
+  const charCount = document.getElementById("charCount");
+  const sideToolbar = document.getElementById("sideToolbar");
+  const toolbarToggle = document.getElementById("toolbarToggle");
+  const markdownCheckbox = document.getElementById("markdownToggle");
+  const toolbarButtons = document.querySelectorAll('[data-format]');
 
-// Handle file name editing
-const fileNameEl = document.querySelector(".file-name");
-fileNameEl.addEventListener("keydown", function (e) {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    this.blur();
+  // Session state
+  const state = {
+    active: false,
+    locked: false,
+    saveTimer: null,
+    markdownMode: false,
+  };
+
+  // AI domains to block
+  const AI_DOMAINS = [
+    'openai.com', 'chat.openai.com', 'chatgpt.com',
+    'claude.ai', 'claude.com',
+    'bard.google.com', 'gemini.google.com',
+    'copilot.microsoft.com',
+    'perplexity.ai', 'poe.com', 'character.ai'
+  ];
+
+  // ==================== SESSION CONTROL ====================
+
+  async function startSession() {
+    state.active = true;
+    state.locked = false;
+
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch (err) {
+      console.error("Fullscreen denied:", err);
+      state.active = false;
+      showWarning("Fullscreen required. Please try again.");
+    }
   }
-});
 
-const editorContainer = document.getElementById("editor-container");
-let editors = {}; // Maps page index to Quill instance
-let currentPageIndex = 0;
-let isUpdating = false;
+  async function endSession() {
+    state.active = false;
+    state.locked = false;
 
-// Create a Quill editor for a specific page
-function createPageEditor(pageIndex) {
-  const editorId = `editor-${pageIndex}`;
+    await saveDocument();
 
-  if (editors[pageIndex]) {
-    return editors[pageIndex];
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+
+    setTimeout(() => {
+      window.location.href = '/dashboard';
+    }, 200);
   }
 
-  const pageWrapper = document.querySelector(`[data-page="${pageIndex}"]`);
-  if (!pageWrapper) return null;
+  // ==================== FULLSCREEN STATE MACHINE ====================
 
-  const editorDiv = pageWrapper.querySelector(".editor-page");
+  function onFullscreenChange() {
+    const inFullscreen = !!document.fullscreenElement;
 
-  const quill = new Quill(editorDiv, {
-    theme: "snow",
-    modules: {
-      toolbar: [
-        ["bold", "italic", "underline", "strike"],
-        ["blockquote", "code-block"],
-        [{ header: 1 }, { header: 2 }],
-        [{ list: "ordered" }, { list: "bullet" }],
-        [{ color: [] }, { background: [] }],
-        ["link", "image"],
-      ],
-    },
-    placeholder: pageIndex === 0 ? "Start typing..." : "",
-  });
-
-  editors[pageIndex] = quill;
-
-  // Track paste events for this editor
-  setupPasteTracking(quill, pageIndex);
-
-  // Handle text changes
-  quill.on("text-change", function (delta, oldDelta, source) {
-    setTimeout(handlePageOverflow, 100);
-    
-    // Skip duplicate paste tracking if we already processed it
-    if (lastPasteProcessed) {
-      lastPasteProcessed = false;
+    if (!state.active) {
+      // Session not active, normal view (preview mode)
+      topbar.style.display = 'flex';
+      sideToolbar.style.display = 'none';
+      lockOverlay.hidden = true;
+      metricsBar.hidden = true;
+      editor.contentEditable = 'false';
+      editor.classList.remove('editor-locked');
+      editor.classList.add('editor-preview');
       return;
     }
-    
-    // Track content changes
-    if (source === "user") {
-      const currentLength = quill.getLength();
-      const previousLength = oldDelta ? oldDelta.length() : 0;
-      const charAdded = currentLength - previousLength;
-      
-      // Detect if this might be a paste (only if not already processed)
-      if (charAdded > PASTE_THRESHOLD && lastSelectionLength === 0) {
-        trackPasteFromChange(pageIndex, charAdded, delta, oldDelta);
+
+    if (inFullscreen && !state.locked) {
+      // Just entered fullscreen: LOCK IT
+      state.locked = true;
+      topbar.style.display = 'none';
+      sideToolbar.style.display = 'flex';
+      lockOverlay.hidden = true;
+      metricsBar.hidden = false;
+      editor.contentEditable = 'true';
+      editor.classList.remove('editor-preview');
+      editor.classList.add('editor-locked');
+      editor.focus();
+      updateMetrics();
+    } else if (!inFullscreen && state.locked) {
+      // Exiting fullscreen while locked: SHOW LOCK OVERLAY
+      state.locked = false;
+      lockOverlay.hidden = false;
+      metricsBar.hidden = true;
+      editor.contentEditable = 'false';
+      editor.classList.remove('editor-locked');
+      editor.classList.add('editor-preview');
+      sideToolbar.style.display = 'none';
+      showWarning('Fullscreen exited. You must end the session.');
+    } else if (!inFullscreen && !state.locked) {
+      // Normal exit after session ended
+      topbar.style.display = 'flex';
+      sideToolbar.style.display = 'none';
+      lockOverlay.hidden = true;
+      metricsBar.hidden = true;
+      editor.contentEditable = 'false';
+      editor.classList.remove('editor-locked');
+      editor.classList.add('editor-preview');
+    }
+  }
+
+  // ==================== AUTO-SAVE ====================
+
+  async function saveDocument() {
+    // Save with HTML formatting and indentation preserved
+    const content = editor.innerHTML || '';
+    const title = projectTitle.textContent || project.title;
+
+    try {
+      const res = await fetch(`/api/projects/${project.id}/autosave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, title })
+      });
+
+      if (res.ok) {
+        statusIndicator.textContent = 'Saved';
+        statusIndicator.classList.add('saved');
+        setTimeout(() => {
+          if (state.active) {
+            statusIndicator.textContent = 'Writing...';
+            statusIndicator.classList.remove('saved');
+          }
+        }, 1500);
       }
+    } catch (err) {
+      console.error("Save failed:", err);
+    }
+  }
+
+  function debounceAutoSave() {
+    if (state.saveTimer) clearTimeout(state.saveTimer);
+    state.saveTimer = setTimeout(() => {
+      if (state.active) saveDocument();
+    }, 250);
+  }
+
+  // ==================== METRICS ====================
+
+  function updateMetrics() {
+    const text = editor.textContent || '';
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    wordCount.textContent = words;
+    charCount.textContent = text.length;
+  }
+
+  // ==================== AI BLOCKING ====================
+
+  function isAIDomain(url) {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return AI_DOMAINS.some(d => hostname.includes(d));
+    } catch {
+      return false;
+    }
+  }
+
+  function showWarning(msg) {
+    warningMessage.textContent = msg;
+    warningPanel.hidden = false;
+    setTimeout(() => { warningPanel.hidden = true; }, 4000);
+  }
+
+  // ==================== TEXT FORMATTING ====================
+
+  function applyFormat(command, value = null) {
+    if (!state.active || !state.locked) return;
+    
+    // Ensure editor has focus
+    editor.focus();
+    
+    // Execute the formatting command
+    document.execCommand(command, false, value);
+    
+    // Trigger save
+    debounceAutoSave();
+  }
+
+  function clearFormatting() {
+    if (!state.active || !state.locked) return;
+    
+    editor.focus();
+    document.execCommand('removeFormat', false, null);
+    debounceAutoSave();
+  }
+
+  function toggleMarkdownMode() {
+    state.markdownMode = markdownCheckbox.checked;
+    // In a full implementation, this would parse/unparse markdown
+    // For now, we just toggle the mode flag for future use
+    console.log('Markdown mode:', state.markdownMode);
+  }
+
+  // ==================== CONTEXT MENU BLOCKING ====================
+
+  document.addEventListener('contextmenu', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
+      showWarning('Right-click is blocked during writing sessions.');
     }
   });
 
-  // Handle focus to update current page indicator
-  quill.on("selection-change", function (range) {
-    if (range) {
-      updateCurrentPage(pageIndex);
-      lastSelectionLength = range.length || 0;
+  // ==================== DRAG & DROP BLOCKING ====================
+
+  document.addEventListener('dragstart', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
+      showWarning('Drag operations are blocked during writing sessions.');
     }
   });
 
-  return quill;
-}
+  document.addEventListener('drop', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
+      showWarning('Drop operations are blocked during writing sessions.');
+    }
+  });
 
-// Setup paste event tracking for a Quill editor
-function setupPasteTracking(quill, pageIndex) {
-  const editorElement = quill.root;
+  document.addEventListener('dragover', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
+    }
+  });
 
-  // Intercept paste from clipboard
-  editorElement.addEventListener("paste", (e) => {
+  // ==================== EVENT LISTENERS ====================
+
+  startSessionBtn.addEventListener('click', startSession);
+  endSessionBtn.addEventListener('click', endSession);
+
+  // Toolbar toggle
+  if (toolbarToggle) {
+    toolbarToggle.addEventListener('click', () => {
+      sideToolbar.classList.toggle('expanded');
+    });
+  }
+
+  // Formatting buttons
+  toolbarButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const format = btn.dataset.format;
+      
+      if (format === 'bold') applyFormat('bold');
+      else if (format === 'italic') applyFormat('italic');
+      else if (format === 'underline') applyFormat('underline');
+      else if (format === 'strikethrough') {
+        // Strikethrough requires special handling since it's not a standard command
+        document.execCommand('strikethrough', false, null);
+      }
+      else if (format === 'bulletList') applyFormat('insertUnorderedList');
+      else if (format === 'numberedList') applyFormat('insertOrderedList');
+      else if (format === 'clear') clearFormatting();
+    });
+  });
+
+  // Markdown toggle
+  if (markdownCheckbox) {
+    markdownCheckbox.addEventListener('change', toggleMarkdownMode);
+  }
+
+  document.addEventListener('fullscreenchange', onFullscreenChange, false);
+
+  editor.addEventListener('input', () => {
+    if (state.active && state.locked) {
+      updateMetrics();
+      statusIndicator.textContent = 'Unsaved...';
+      statusIndicator.classList.remove('saved');
+      debounceAutoSave();
+    }
+  });
+
+  // ==================== PASTE BLOCKING ====================
+
+  editor.addEventListener('paste', (e) => {
+    if (!state.active) return;
     e.preventDefault();
+    showWarning('Pasting is blocked during writing sessions.');
+  });
 
-    const clipboardData = e.clipboardData || window.clipboardData;
-    const pastedText = clipboardData.getData("text/plain");
-    const pastedHtml = clipboardData.getData("text/html");
-    const pastedFiles = clipboardData.files;
-    
-    const pasteData = {
-      timestamp: new Date().toISOString(),
-      pageIndex: pageIndex,
-      type: "paste",
-      charCount: pastedText.length,
-      isLarge: pastedText.length > PASTE_THRESHOLD,
-      hasImages: pastedFiles.length > 0,
-      hasHtml: !!pastedHtml,
-      wordCount: pastedText.split(/\s+/).filter(w => w.length > 0).length,
-      lineCount: pastedText.split("\n").length,
-      averageLineLength: Math.round(pastedText.length / pastedText.split("\n").length),
-      contentPreview: pastedText.substring(0, 100) + (pastedText.length > 100 ? "..." : ""),
-      detectedLanguage: detectLanguage(pastedText),
-      hasTables: pastedHtml ? pastedHtml.includes("<table") : false,
-      hasLinks: /https?:\/\/|www\./i.test(pastedText),
-      hasCode: /```|<code|console\.|function |class |var |const |let /.test(pastedText),
-    };
-
-    // Log to history
-    logPaste(pasteData);
-    
-    // Set flag to prevent duplicate tracking in text-change event
-    lastPasteProcessed = true;
-
-    // Insert the text into the editor
-    quill.updateContents(new Delta().retain(quill.getSelection().index).insert(pastedText));
-
-    // Show visual feedback if large
-    if (pasteData.isLarge) {
-      showPasteAlert(pasteData);
+  // Also block paste on document level
+  document.addEventListener('paste', (e) => {
+    if (state.active) {
+      e.preventDefault();
     }
   });
-}
 
-// Log paste event to history
-function logPaste(pasteData) {
-  pasteHistory.push(pasteData);
-  
-  // Keep history limited
-  if (pasteHistory.length > PASTE_HISTORY_LIMIT) {
-    pasteHistory.shift();
-  }
+  // ==================== COPY BLOCKING ====================
 
-  // Log to console with details
-  console.group(
-    `%c📋 PASTE DETECTED (${pasteData.charCount} chars)`,
-    "color: #1a73e8; font-weight: bold; font-size: 12px;"
-  );
-  console.log("Timestamp:", pasteData.timestamp);
-  console.log("Page:", pasteData.pageIndex);
-  console.log("Characters:", pasteData.charCount);
-  console.log("Words:", pasteData.wordCount);
-  console.log("Lines:", pasteData.lineCount);
-  console.log("Avg Line Length:", pasteData.averageLineLength);
-  console.log("Has Images:", pasteData.hasImages);
-  console.log("Has HTML Formatting:", pasteData.hasHtml);
-  console.log("Has Links:", pasteData.hasLinks);
-  console.log("Has Code:", pasteData.hasCode);
-  console.log("Has Tables:", pasteData.hasTables);
-  console.log("Detected Language:", pasteData.detectedLanguage);
-  console.log("Preview:", pasteData.contentPreview);
-  console.log("Full Data:", pasteData);
-  console.groupEnd();
-
-  // Update stats panel
-  updatePasteStatsPanel();
-}
-
-// Detect likely language of pasted content
-function detectLanguage(text) {
-  const codePatterns = {
-    javascript: /\b(function|const|let|var|async|await|=>|import|export)\b/g,
-    python: /\b(def|class|import|from|async|await|lambda|with)\b/g,
-    html: /<[^>]+>/g,
-    css: /\{[^}]*:[^}]*;\}/g,
-    json: /^\s*[{\[]/m,
-    xml: /<\?xml|xmlns/,
-  };
-
-  let detected = [];
-  for (const [lang, pattern] of Object.entries(codePatterns)) {
-    const matches = text.match(pattern);
-    if (matches && matches.length >= 2) {
-      detected.push(lang);
+  editor.addEventListener('copy', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
+      showWarning('Copying is blocked during writing sessions.');
     }
-  }
+  });
 
-  return detected.length > 0 ? detected.join(", ") : "plain text";
-}
-
-// Track paste from text-change event (fallback for programmatic pastes)
-function trackPasteFromChange(pageIndex, charAdded, delta, oldDelta) {
-  const pasteData = {
-    timestamp: new Date().toISOString(),
-    pageIndex: pageIndex,
-    type: "paste_detected",
-    charCount: charAdded,
-    isLarge: charAdded > PASTE_THRESHOLD,
-    detectionMethod: "content-change",
-    deltaOps: delta.ops.length,
-  };
-
-  logPaste(pasteData);
-}
-
-// Show visual alert for large paste
-function showPasteAlert(pasteData) {
-  const alert = document.createElement("div");
-  alert.className = "paste-alert";
-  alert.innerHTML = `
-    <div class="paste-alert-content">
-      <span class="paste-alert-icon">⚠️</span>
-      <div class="paste-alert-text">
-        <strong>Large paste detected</strong>
-        <small>${pasteData.charCount} characters, ${pasteData.wordCount} words</small>
-      </div>
-      <button class="paste-alert-close" onclick="this.parentElement.parentElement.remove()">✕</button>
-    </div>
-  `;
-  document.body.appendChild(alert);
-
-  // Auto-remove after 5 seconds
-  setTimeout(() => {
-    if (alert.parentElement) {
-      alert.remove();
+  editor.addEventListener('cut', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
+      showWarning('Cut is blocked during writing sessions.');
     }
-  }, 5000);
-}
+  });
 
-// Update and show paste statistics panel
-function updatePasteStatsPanel() {
-  if (!pasteStatsPanel) {
-    pasteStatsPanel = document.createElement("div");
-    pasteStatsPanel.id = "paste-stats-panel";
-    pasteStatsPanel.className = "paste-stats-panel";
-    pasteStatsPanel.innerHTML = '<button onclick="togglePasteStats()">📊 Paste Stats</button>';
-    document.body.appendChild(pasteStatsPanel);
-  }
-
-  // Update the button to show count
-  const btn = pasteStatsPanel.querySelector("button");
-  const largeCount = pasteHistory.filter((p) => p.isLarge).length;
-  btn.textContent = `📊 Pastes: ${pasteHistory.length} (${largeCount} large)`;
-}
-
-// Toggle paste history panel visibility
-function togglePasteStats() {
-  let panel = document.getElementById("paste-history-panel");
-  
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.id = "paste-history-panel";
-    panel.className = "paste-history-panel";
-    document.body.appendChild(panel);
-  }
-
-  if (panel.style.display === "none" || !panel.style.display) {
-    panel.style.display = "block";
-    renderPasteHistory(panel);
-  } else {
-    panel.style.display = "none";
-  }
-}
-
-// Render paste history in panel
-function renderPasteHistory(panel) {
-  const html = `
-    <div class="paste-history-header">
-      <h3>Paste History (${pasteHistory.length})</h3>
-      <button onclick="closePasteHistory()" class="close-btn">✕</button>
-    </div>
-    <div class="paste-history-list">
-      ${pasteHistory
-        .slice()
-        .reverse()
-        .map(
-          (p, i) => `
-        <div class="paste-item ${p.isLarge ? "large" : ""}">
-          <div class="paste-item-header">
-            <span class="paste-time">${new Date(p.timestamp).toLocaleTimeString()}</span>
-            <span class="paste-badge">${p.charCount} chars</span>
-            ${p.isLarge ? '<span class="paste-flag">⚠️ Large</span>' : ""}
-          </div>
-          <div class="paste-item-details">
-            <small>Page ${p.pageIndex + 1} • ${p.wordCount} words • ${p.lineCount} lines</small>
-            ${p.hasCode ? '<span class="paste-tag">Code</span>' : ""}
-            ${p.hasLinks ? '<span class="paste-tag">Links</span>' : ""}
-            ${p.hasHtml ? '<span class="paste-tag">Formatted</span>' : ""}
-            ${p.hasImages ? '<span class="paste-tag">Images</span>' : ""}
-          </div>
-          <div class="paste-item-preview">${escapeHtml(p.contentPreview)}</div>
-        </div>
-      `
-        )
-        .join("")}
-    </div>
-  `;
-  panel.innerHTML = html;
-}
-
-// Close paste history panel
-function closePasteHistory() {
-  const panel = document.getElementById("paste-history-panel");
-  if (panel) {
-    panel.style.display = "none";
-  }
-}
-
-// Utility to escape HTML
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// Handle content overflowing to next page
-function handlePageOverflow() {
-  if (isUpdating) return;
-  isUpdating = true;
-
-  const currentEditor = editors[currentPageIndex];
-  if (!currentEditor) {
-    isUpdating = false;
-    return;
-  }
-
-  const editorDiv = currentEditor.root;
-  const scrollHeight = editorDiv.scrollHeight;
-
-  // If current page exceeds content height, move overflow to next page
-  if (scrollHeight > CONTENT_HEIGHT) {
-    moveOverflowToNextPage(currentPageIndex);
-  }
-
-  updatePageIndicator();
-  isUpdating = false;
-}
-
-// Move overflow content to next page
-function moveOverflowToNextPage(pageIndex) {
-  const currentEditor = editors[pageIndex];
-  const nextPageIndex = pageIndex + 1;
-
-  // Get the contents of current editor
-  const contents = currentEditor.getContents();
-  const delta = contents.ops || [];
-
-  // Create next page if needed
-  if (!editors[nextPageIndex]) {
-    createNewPage(nextPageIndex);
-  }
-
-  // Get next editor
-  const nextEditor = editors[nextPageIndex];
-  if (!nextEditor) return;
-
-  // Try to fit content on current page by removing from end
-  let found = false;
-  let lastIndex = delta.length - 1;
-
-  while (lastIndex > 0 && !found) {
-    // Try removing content from the end
-    const testDelta = { ops: delta.slice(0, lastIndex) };
-    currentEditor.setContents(testDelta, "silent");
-
-    if (currentEditor.root.scrollHeight <= CONTENT_HEIGHT) {
-      found = true;
-      // Move the rest to next page
-      const overflowDelta = { ops: delta.slice(lastIndex) };
-      const nextContents = nextEditor.getContents();
-
-      // Prepend overflow to next page
-      const combined = {
-        ops: [...overflowDelta.ops, ...nextContents.ops],
-      };
-      nextEditor.setContents(combined, "silent");
-      break;
+  document.addEventListener('copy', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
     }
-    lastIndex--;
-  }
-}
+  });
 
-// Create a new page
-function createNewPage(pageIndex) {
-  const newPageWrapper = document.createElement("div");
-  newPageWrapper.className = "page-wrapper";
-  newPageWrapper.setAttribute("data-page", pageIndex);
+  document.addEventListener('cut', (e) => {
+    if (state.active && state.locked) {
+      e.preventDefault();
+    }
+  });
 
-  const editorPage = document.createElement("div");
-  editorPage.className = "editor-page";
-  editorPage.id = `editor-${pageIndex}`;
+  // ==================== SCREENSHOT BLOCKING ====================
 
-  newPageWrapper.appendChild(editorPage);
-  editorContainer.appendChild(newPageWrapper);
+  // Block PrintScreen key
+  document.addEventListener('keydown', (e) => {
+    if (!state.active || !state.locked) return;
+    
+    if (e.key === 'PrintScreen' || e.code === 'PrintScreen') {
+      e.preventDefault();
+      showWarning('Screenshots are blocked during writing sessions.');
+    }
+    
+    // Block Shift+PrintScreen
+    if ((e.shiftKey && e.key === 'PrintScreen') || (e.shiftKey && e.code === 'PrintScreen')) {
+      e.preventDefault();
+      showWarning('Screenshots are blocked during writing sessions.');
+    }
+    
+    // Block Ctrl/Cmd+Shift+S (Save dialog, Mac screenshot)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 's') {
+      e.preventDefault();
+      showWarning('Screenshots are blocked during writing sessions.');
+    }
+  });
 
-  return createPageEditor(pageIndex);
-}
+  // Block Ctrl+PrintScreen
+  document.addEventListener('keyup', (e) => {
+    if (!state.active || !state.locked) return;
+    
+    if (e.ctrlKey && e.key === 'PrintScreen') {
+      e.preventDefault();
+      showWarning('Screenshots are blocked during writing sessions.');
+    }
+  });
 
-// Update current page indicator
-function updateCurrentPage(pageIndex) {
-  if (pageIndex !== currentPageIndex) {
-    currentPageIndex = pageIndex;
-    document.getElementById("current-page").textContent = pageIndex + 1;
-  }
-}
+  // ==================== PAGE SAVE BLOCKING ====================
 
-// Update total pages indicator
-function updatePageIndicator() {
-  const totalPages = Object.keys(editors).length;
-  document.getElementById("total-pages").textContent = totalPages;
-}
+  document.addEventListener('keydown', (e) => {
+    if (!state.active || !state.locked) return;
+    
+    // Block Ctrl+S / Cmd+S (Save page)
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      showWarning('Page save is blocked during writing sessions.');
+    }
+    
+    // Block Escape key (often used in save dialogs)
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      showWarning('Use "End Session" button to exit.');
+    }
+    
+    // Block Ctrl+P / Cmd+P (Print to PDF)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      e.preventDefault();
+      showWarning('Printing is blocked during writing sessions.');
+    }
+  });
 
-// Handle container scroll to update page indicator
-editorContainer.addEventListener("scroll", function () {
-  const scrollTop = this.scrollTop;
-  const pageIndex = Math.floor(scrollTop / PAGE_HEIGHT);
-  updateCurrentPage(pageIndex);
+  // ==================== GENERIC SECURITY BLOCKING ====================
+
+  document.addEventListener('click', (e) => {
+    if (!state.active) return;
+    const link = e.target.closest('a');
+    if (link && isAIDomain(link.href)) {
+      e.preventDefault();
+      showWarning('AI domain access blocked.');
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (state.active && document.hidden) {
+      showWarning('Tab switching detected.');
+    }
+  });
+
+  // ==================== INIT ====================
+
+  editor.contentEditable = 'false';
+  editor.classList.add('editor-preview');
+  sideToolbar.style.display = 'none';
+  lockOverlay.hidden = true;
+  metricsBar.hidden = true;
+
+  console.log('Writer ready:', project.title);
 });
-
-// Initialize first page
-createPageEditor(0);
-updatePageIndicator();

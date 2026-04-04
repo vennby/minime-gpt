@@ -1,19 +1,164 @@
 :root {
-  --font-times-new-roman: "Times New Roman", Times, serif;
-  --font-segoe-ui: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  --font-ubuntu: "Ubuntu", sans-serif;
-  --font-futura: Futura, "Trebuchet MS", Arial, sans-serif;
-  --font-courier-new: "Courier New", Courier, monospace;
-  --font-georgia: Georgia, serif;
-  --font-trebuchet-ms: "Trebuchet MS", sans-serif;
-  --font-verdana: Verdana, Geneva, sans-serif;
-  --font-lexend: "Lexend", sans-serif;
-  --font-arial: Arial, Helvetica, sans-serif;
+  --color-primary: #4f46e5;
+  --color-primary-dark: #4338ca;
+  --color-secondary: #6b7280;
+  --color-text: #1f2937;
+  --color-text-light: #6b7280;
+  --color-bg: #ffffff;
+  --color-bg-light: #f9fafb;
+  --color-border: #e5e7eb;
+  --color-error: #dc2626;
+  --color-success: #16a34a;
+  --color-warning: #ea580c;
+  
+  --font-family: 'Lexend', 'Ubuntu', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Ubuntu Mono', monospace;
+  
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  
+  color-scheme: light;
 }
 
-body,
-html {
-  font-family: var(--font-segoe-ui);
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
+  height: 100%;
+  font-family: var(--font-family);
+  background: var(--color-bg-light);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  transition: border-color 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+::selection {
+  background: rgba(79, 70, 229, 0.25);
+  color: inherit;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-primary-dark);
+}
+
+/* Buttons */
+.btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn:hover {
+  background: var(--color-bg-light);
+  border-color: var(--color-secondary);
+}
+
+.btn.primary {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.btn.primary:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.btn.secondary {
+  background: var(--color-secondary);
+  color: white;
+  border-color: var(--color-secondary);
+}
+
+.btn.secondary:hover {
+  background: #4b5563;
+}
+
+.btn.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: 0.875rem;
+}
+
+.btn.btn-large {
+  padding: var(--spacing-md) var(--spacing-2xl);
+  font-size: 1.125rem;
+}
+
+/* Alerts */
+.alert {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  border-left: 4px solid;
+}
+
+.alert-error {
+  background: #fee2e2;
+  border-color: var(--color-error);
+  color: #991b1b;
 }

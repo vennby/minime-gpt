@@ -1,35 +1,166 @@
-{% extends 'base.html' %} {% block head %}
-<link rel="stylesheet" href="static/css/index.css" />
-<link
-  href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css"
-  rel="stylesheet"
-/>
-{% endblock %} {% block content %}
-<nav>
-  <h1>M</h1>
-</nav>
+{% extends 'base.html' %}
 
-<div class="header">
-  <div class="file-name" contenteditable="true">Untitled document</div>
-  <div class="toolbar-spacer"></div>
-  <div class="toolbar-actions">
-    <button class="toolbar-btn">Share</button>
-    <button class="toolbar-btn primary">+ New</button>
-  </div>
-</div>
+{% block title %}{{ project.title }} — Writing{% endblock %}
 
-<div class="text-editor">
-  <div class="editor-container" id="editor-container">
-    <div class="page-wrapper" data-page="0">
-      <div class="editor-page" id="editor-0"></div>
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="app-shell">
+  <!-- Topbar: visible before fullscreen lock -->
+  <div class="topbar" id="topbar">
+    <div class="topbar-left">
+      <h1 class="project-title" id="projectTitle" contenteditable="true">{{ project.title }}</h1>
+    </div>
+    <div class="topbar-right">
+      <span class="status-indicator" id="statusIndicator">Ready</span>
+      <button id="startSessionBtn" class="btn btn-sm btn-primary">Start Session</button>
     </div>
   </div>
+
+  <!-- Main content: Editor + Sidebar -->
+  <div class="editor-container">
+    <!-- Side toolbar: collapsible formatting panel -->
+    <div class="side-toolbar" id="sideToolbar">
+      <button class="toolbar-toggle" id="toolbarToggle" title="Toggle toolbar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="5" y1="6" x2="19" y2="6"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <line x1="5" y1="18" x2="19" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="toolbar-content" id="toolbarContent">
+        <!-- Text formatting -->
+        <div class="toolbar-section">
+          <div class="toolbar-section-label">Format</div>
+          <button class="toolbar-button" data-format="bold" title="Bold (Ctrl+B)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+              <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+            </svg>
+            <span class="toolbar-button-label">Bold</span>
+          </button>
+          <button class="toolbar-button" data-format="italic" title="Italic (Ctrl+I)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="4" x2="10" y2="4"></line>
+              <line x1="14" y1="20" x2="5" y2="20"></line>
+              <line x1="15" y1="4" x2="9" y2="20"></line>
+            </svg>
+            <span class="toolbar-button-label">Italic</span>
+          </button>
+          <button class="toolbar-button" data-format="underline" title="Underline (Ctrl+U)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 4v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4"></path>
+              <line x1="4" y1="21" x2="20" y2="21"></line>
+            </svg>
+            <span class="toolbar-button-label">Underline</span>
+          </button>
+          <button class="toolbar-button" data-format="strikethrough" title="Strikethrough">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.3 13.61A6.3 6.3 0 0 0 12 11c-3.98 0-7.7 1.58-10.36 4.14m4.38 11.28A6.3 6.3 0 0 1 12 21c3.98 0 7.7-1.58 10.36-4.14"></path>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+            </svg>
+            <span class="toolbar-button-label">Strike</span>
+          </button>
+        </div>
+
+        <!-- Lists -->
+        <div class="toolbar-section">
+          <div class="toolbar-section-label">Lists</div>
+          <button class="toolbar-button" data-format="bulletList" title="Bullet list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="5" cy="6" r="1"></circle>
+              <line x1="9" y1="6" x2="20" y2="6"></line>
+              <circle cx="5" cy="12" r="1"></circle>
+              <line x1="9" y1="12" x2="20" y2="12"></line>
+              <circle cx="5" cy="18" r="1"></circle>
+              <line x1="9" y1="18" x2="20" y2="18"></line>
+            </svg>
+            <span class="toolbar-button-label">Bullets</span>
+          </button>
+          <button class="toolbar-button" data-format="numberedList" title="Numbered list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="10" y1="6" x2="21" y2="6"></line>
+              <line x1="10" y1="12" x2="21" y2="12"></line>
+              <line x1="10" y1="18" x2="21" y2="18"></line>
+              <path d="M4 6h1v4"></path>
+              <path d="M4 10h2"></path>
+              <path d="M6 18H4c0-1 1-2 2-2s1.5.5 1.5 1.5S7 19 6 19"></path>
+            </svg>
+            <span class="toolbar-button-label">Numbers</span>
+          </button>
+        </div>
+
+        <!-- Markdown mode toggle -->
+        <div class="toolbar-section">
+          <div class="toolbar-checkbox-wrapper">
+            <input type="checkbox" id="markdownToggle" aria-label="Toggle markdown mode">
+            <label for="markdownToggle">Markdown</label>
+          </div>
+          <p class="markdown-hint">Write in markdown syntax</p>
+        </div>
+
+        <!-- Clear formatting -->
+        <div class="toolbar-section">
+          <button class="toolbar-button" data-format="clear" title="Clear all formatting" style="color: #dc2626;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18"></path>
+              <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6"></path>
+              <line x1="9" y1="6" x2="9" y2="2"></line>
+              <line x1="15" y1="6" x2="15" y2="2"></line>
+            </svg>
+            <span class="toolbar-button-label">Clear</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div class="editor-shell">
+      <div class="editor" id="editor" spellcheck="true">{{ project.content|safe }}</div>
+    </div>
+
+    <!-- Lock overlay: shown when trying to exit fullscreen -->
+    <div class="lock-overlay" id="lockOverlay" hidden>
+      <div class="lock-modal">
+        <h2>Session Locked</h2>
+        <p>You are in a protected writing session.</p>
+        <p class="lock-hint">You cannot exit fullscreen while the session is active.</p>
+        <button id="endSessionBtn" class="btn btn-primary btn-large">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metrics bar: visible during session -->
+  <div class="metrics-bar" id="metricsBar" hidden>
+    <div class="metrics-group">
+      <span class="metric-label">Words:</span>
+      <span class="metric-value" id="wordCount">0</span>
+    </div>
+    <div class="metrics-group">
+      <span class="metric-label">Chars:</span>
+      <span class="metric-value" id="charCount">0</span>
+    </div>
+  </div>
+
+  <!-- Warning panel: AI blocked notifications -->
+  <div class="warning-panel" id="warningPanel" hidden>
+    <p class="warning-title">⚠️ Blocked</p>
+    <p class="warning-message" id="warningMessage">Access denied.</p>
+  </div>
 </div>
 
-<div class="page-indicator">
-  <span id="current-page">1</span> / <span id="total-pages">1</span>
-</div>
-{% endblock %} {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-<script src="static/js/index.js"></script>
+<script>
+  window.MINIME_PROJECT = {
+    id: {{ project.id }},
+    title: {{ project.title|tojson }},
+    content: {{ project.content|tojson }}
+  };
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
 {% endblock %}

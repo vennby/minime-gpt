@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}MinimēGPT{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="page-shell auth-shell">
+  <section class="auth-card">
+    <h1>Create account</h1>
+    <p>Set up your writing workspace for managed sessions.</p>
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="auth-form">
+      <label>
+        Full name
+        <input name="name" type="text" required autocomplete="name">
+      </label>
+      <label>
+        Email
+        <input name="email" type="email" required autocomplete="email">
+      </label>
+      <label>
+        Password
+        <input name="password" type="password" minlength="6" required autocomplete="new-password">
+      </label>
+      <button class="btn primary" type="submit">Create account</button>
+    </form>
+
+    <p class="auth-foot">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+  </section>
+</main>
+{% endblock %}
