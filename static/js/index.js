@@ -21,8 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const wordCount = document.getElementById("wordCount");
   const charCount = document.getElementById("charCount");
   const sideToolbar = document.getElementById("sideToolbar");
-  const toolbarToggle = document.getElementById("toolbarToggle");
-  const markdownCheckbox = document.getElementById("markdownToggle");
+  const darkModeToggle = document.getElementById("darkModeToggle");
   const toolbarButtons = document.querySelectorAll('[data-format]');
 
   // Session state
@@ -30,7 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
     active: false,
     locked: false,
     saveTimer: null,
-    markdownMode: false,
   };
 
   // AI domains to block
@@ -200,19 +198,17 @@ document.addEventListener("DOMContentLoaded", () => {
     debounceAutoSave();
   }
 
-  function clearFormatting() {
-    if (!state.active || !state.locked) return;
-    
-    editor.focus();
-    document.execCommand('removeFormat', false, null);
-    debounceAutoSave();
-  }
+  // ==================== DARK MODE ====================
 
-  function toggleMarkdownMode() {
-    state.markdownMode = markdownCheckbox.checked;
-    // In a full implementation, this would parse/unparse markdown
-    // For now, we just toggle the mode flag for future use
-    console.log('Markdown mode:', state.markdownMode);
+  function toggleDarkMode() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('darkMode', 'false');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('darkMode', 'true');
+    }
   }
 
   // ==================== CONTEXT MENU BLOCKING ====================
@@ -251,11 +247,9 @@ document.addEventListener("DOMContentLoaded", () => {
   startSessionBtn.addEventListener('click', startSession);
   endSessionBtn.addEventListener('click', endSession);
 
-  // Toolbar toggle
-  if (toolbarToggle) {
-    toolbarToggle.addEventListener('click', () => {
-      sideToolbar.classList.toggle('expanded');
-    });
+  // Dark mode toggle
+  if (darkModeToggle) {
+    darkModeToggle.addEventListener('click', toggleDarkMode);
   }
 
   // Formatting buttons
@@ -267,19 +261,20 @@ document.addEventListener("DOMContentLoaded", () => {
       else if (format === 'italic') applyFormat('italic');
       else if (format === 'underline') applyFormat('underline');
       else if (format === 'strikethrough') {
-        // Strikethrough requires special handling since it's not a standard command
         document.execCommand('strikethrough', false, null);
       }
       else if (format === 'bulletList') applyFormat('insertUnorderedList');
       else if (format === 'numberedList') applyFormat('insertOrderedList');
-      else if (format === 'clear') clearFormatting();
+      // Font size options
+      else if (format === 'fontSize-small') document.execCommand('fontSize', false, '1');
+      else if (format === 'fontSize-normal') document.execCommand('fontSize', false, '3');
+      else if (format === 'fontSize-large') document.execCommand('fontSize', false, '5');
+      // Text alignment options
+      else if (format === 'alignLeft') applyFormat('justifyLeft');
+      else if (format === 'alignCenter') applyFormat('justifyCenter');
+      else if (format === 'alignRight') applyFormat('justifyRight');
     });
   });
-
-  // Markdown toggle
-  if (markdownCheckbox) {
-    markdownCheckbox.addEventListener('change', toggleMarkdownMode);
-  }
 
   document.addEventListener('fullscreenchange', onFullscreenChange, false);
 
