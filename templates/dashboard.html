@@ -48,7 +48,41 @@
   </section>
 
   <footer class="dashboard-footer">
-    <a href="{{ url_for('logout') }}" class="btn secondary">Log out</a>
+    <div class="footer-buttons">
+      <a href="{{ url_for('logout') }}" class="btn secondary">Log out</a>
+      <button id="deleteBtn" class="btn delete" type="button">Delete account</button>
+    </div>
   </footer>
+
+  <!-- Delete account confirmation modal -->
+  <div id="deleteModal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <h2>Delete account?</h2>
+      <p>This will permanently delete your account and all writing projects. This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="cancelBtn" class="btn secondary" type="button">Cancel</button>
+        <form method="post" action="{{ url_for('delete_account') }}" style="display: inline;">
+          <button class="btn delete" type="submit">Yes, delete my account</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('deleteBtn').addEventListener('click', function() {
+      document.getElementById('deleteModal').classList.remove('hidden');
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click', function() {
+      document.getElementById('deleteModal').classList.add('hidden');
+    });
+
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        this.classList.add('hidden');
+      }
+    });
+  </script>
 </main>
 {% endblock %}

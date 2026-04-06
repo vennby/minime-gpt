@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
+from authlib.integrations.flask_client import OAuth
 from datetime import datetime
 from functools import wraps
 import os
@@ -14,6 +14,22 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///minime.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+oauth = OAuth(app)
+
+# Google OAuth Configuration
+google = oauth.register(
+    name='google',
+    client_id=os.getenv('GOOGLE_CLIENT_ID'),
+    client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid profile email'},
+    authorize_url='https://accounts.google.com/o/oauth2/v2/auth',
+    authorize_params=None,
+    access_token_url='https://www.googleapis.com/oauth2/v4/token',
+    access_token_params=None,
+    refresh_token_url='https://www.googleapis.com/oauth2/v4/token',
+    redirect_to='auth_callback'
+)
 
 # ============================================================================
 # Models
@@ -23,7 +39,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    google_id = db.Column(db.String(255), unique=True, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     projects = db.relationship('Project', backref='owner', lazy=True, cascade='all, delete-orphan')
@@ -70,52 +86,106 @@ def landing():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '').strip()
-        
-        if not name or not email or not password:
-            return render_template('register.html', error='All fields are required'), 400
-        
-        if User.query.filter_by(email=email).first():
-            return render_template('register.html', error='Email already registered'), 400
-        
-        user = User(
-            name=name,
-            email=email,
-            password_hash=generate_password_hash(password)
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        session['user_id'] = user.id
-        return redirect(url_for('dashboard'))
-    
     return render_template('register.html')
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET'])
 def login():
-    if request.method == 'POST':
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '').strip()
+    return render_template('login.html')
+
+
+@app.route('/auth/google')
+def auth_google():
+    try:
+        # Use localhost consistently for local development
+        redirect_uri = os.getenv('REDIRECT_URI', url_for('auth_callback', _external=True, _scheme='http'))
+        return google.authorize_redirect(redirect_uri)
+    except Exception as e:
+        error_msg = 'We couldn\'t start the Google sign-in process. Please try again or contact support if the problem persists.'
+        return render_template('error.html', error=error_msg, error_code=500), 500
+
+
+@app.route('/auth/callback')
+def auth_callback():
+    try:
+        token = google.authorize_access_token()
+        if not token:
+            error_msg = 'Google authentication didn\'t complete. Please try signing in again.'
+            return render_template('error.html', error=error_msg, error_code=401), 401
         
+        user_info = token.get('userinfo')
+        
+        if not user_info:
+            error_msg = 'We couldn\'t retrieve your Google profile. Please try signing in again.'
+            return render_template('error.html', error=error_msg, error_code=401), 401
+        
+        email = user_info.get('email')
+        name = user_info.get('name')
+        google_id = user_info.get('sub')
+        
+        if not email or not google_id:
+            error_msg = 'Your Google account is missing required information. Please try a different Google account.'
+            return render_template('error.html', error=error_msg, error_code=400), 400
+        
+        # Find or create user
         user = User.query.filter_by(email=email).first()
         
-        if not user or not check_password_hash(user.password_hash, password):
-            return render_template('login.html', error='Invalid email or password'), 401
+        if not user:
+            user = User(
+                name=name or 'User',
+                email=email,
+                google_id=google_id
+            )
+            db.session.add(user)
+        else:
+            # Update google_id if not set
+            if not user.google_id:
+                user.google_id = google_id
+            user.name = name or user.name  # Update name from Google if provided
         
+        db.session.commit()
         session['user_id'] = user.id
         return redirect(url_for('dashboard'))
     
-    return render_template('login.html')
+    except Exception as e:
+        error_msg = 'An unexpected error occurred during sign-in. Please try again.'
+        return render_template('error.html', error=error_msg, error_code=500), 500
 
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('landing'))
+
+
+@app.route('/delete-account', methods=['POST'])
+def delete_account():
+    """Delete user account and all associated projects"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    try:
+        user_id = session['user_id']
+        user = User.query.get(user_id)
+        
+        if not user:
+            return render_template('error.html', error='User not found.', error_code=404), 404
+        
+        # Delete all user projects (cascade delete happens automatically)
+        Project.query.filter_by(owner_id=user_id).delete()
+        
+        # Delete user
+        db.session.delete(user)
+        db.session.commit()
+        
+        # Clear session
+        session.clear()
+        
+        return redirect(url_for('landing'))
+    
+    except Exception as e:
+        error_msg = 'An error occurred while deleting your account. Please try again.'
+        return render_template('error.html', error=error_msg, error_code=500), 500
 
 
 # ============================================================================

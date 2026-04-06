@@ -1,17 +1,116 @@
 {% extends 'base.html' %}
 
-{% block title %}MinimēGPT{% endblock %}
+{% block title %}Error - MinimēGPT{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+<style>
+  .error-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: var(--spacing-2xl);
+  }
+
+  .error-card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: var(--spacing-3xl);
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  }
+
+  .error-icon {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-lg);
+    opacity: 0.8;
+  }
+
+  .error-card h1 {
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text);
+  }
+
+  .error-card .error-code {
+    font-size: 0.875rem;
+    color: var(--color-text-light);
+    margin-bottom: var(--spacing-lg);
+    font-family: monospace;
+    opacity: 0.7;
+  }
+
+  .error-card p {
+    color: var(--color-text-light);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-xl);
+    font-size: 0.95rem;
+  }
+
+  .error-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-direction: column;
+  }
+
+  .error-actions a {
+    text-decoration: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .error-actions .btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+
+  .error-actions .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+  }
+
+  .error-actions .btn-secondary {
+    background-color: var(--bg-tertiary);
+    color: var(--color-text);
+    border: 1px solid var(--border-color);
+  }
+
+  .error-actions .btn-secondary:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  [data-theme="dark"] .error-actions .btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<main class="page-shell">
+<div class="error-container">
   <section class="error-card">
-    <h1>Something went wrong</h1>
-    <p>{{ error }}</p>
-    <a href="{{ url_for('landing') }}" class="btn primary">Go back home</a>
+    <div class="error-icon">⚠️</div>
+    
+    <h1>Oops!</h1>
+    {% if error_code %}
+    <div class="error-code">Error {{ error_code }}</div>
+    {% endif %}
+    
+    <p>{{ error if error else 'Something went wrong. Please try again later.' }}</p>
+    
+    <div class="error-actions">
+      <a href="{{ url_for('dashboard') if 'user_id' in session else url_for('landing') }}" class="btn-primary">
+        ← {{ 'Back to Dashboard' if 'user_id' in session else 'Back to Home' }}
+      </a>
+      <a href="{{ url_for('landing') }}" class="btn-secondary">
+        Start Over
+      </a>
+    </div>
   </section>
-</main>
+</div>
 {% endblock %}
