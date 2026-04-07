@@ -1,88 +1,188 @@
 {% extends 'base.html' %}
 
-{% block title %}MinimēGPT{% endblock %}
+{% block title %}Dashboard - MinimēGPT{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
 {% endblock %}
 
 {% block content %}
-<main class="page-shell dashboard-shell">
-  <section class="dashboard-head">
-    <div>
-      <p class="eyebrow">Workspace</p>
-      <h1>{{ user.name }}'s writing projects</h1>
-    </div>
-    <form method="post" action="{{ url_for('create_project') }}" class="create-form">
-      <input name="title" type="text" placeholder="New project title" maxlength="160" required>
-      <button class="btn primary" type="submit">New project</button>
-    </form>
-  </section>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div class="flash-wrap">
-      {% for category, message in messages %}
-      <p class="flash {{ category }}">{{ message }}</p>
-      {% endfor %}
-    </div>
-    {% endif %}
-  {% endwith %}
-
-  <section class="project-grid">
-    {% if projects %}
-      {% for project in projects %}
-      <article class="project-card">
-        <h2>{{ project.title }}</h2>
-        <p class="meta">Updated {{ project.updated_at.strftime('%b %d, %Y at %H:%M') }}</p>
-        <div class="preview">{{ project.content[:120] }}{% if project.content|length > 120 %}...{% endif %}</div>
-        <a class="btn primary" href="{{ url_for('write_project', project_id=project.id) }}">Start writing session</a>
-      </article>
-      {% endfor %}
-    {% else %}
-      <article class="project-card empty">
-        <h2>No projects yet</h2>
-        <p>Create your first writing project to begin a guarded session.</p>
-      </article>
-    {% endif %}
-  </section>
-
-  <footer class="dashboard-footer">
-    <div class="footer-buttons">
-      <a href="{{ url_for('logout') }}" class="btn secondary">Log out</a>
-      <button id="deleteBtn" class="btn delete" type="button">Delete account</button>
-    </div>
-  </footer>
-
-  <!-- Delete account confirmation modal -->
-  <div id="deleteModal" class="modal hidden">
-    <div class="modal-overlay"></div>
-    <div class="modal-content">
-      <h2>Delete account?</h2>
-      <p>This will permanently delete your account and all writing projects. This action cannot be undone.</p>
-      <div class="modal-actions">
-        <button id="cancelBtn" class="btn secondary" type="button">Cancel</button>
-        <form method="post" action="{{ url_for('delete_account') }}" style="display: inline;">
-          <button class="btn delete" type="submit">Yes, delete my account</button>
-        </form>
+<main class="dashboard-layout">
+  <!-- Top Navigation Bar -->
+  <nav class="dashboard-navbar">
+    <div class="navbar-content">
+      <h2 class="navbar-title">MinimēGPT</h2>
+      <div class="navbar-actions">
+        <div class="navbar-profile">
+          <button id="profileMenuBtn" class="navbar-profile-btn" title="Profile menu" aria-label="Profile menu">
+            <span class="profile-avatar">{{ user.name[0] }}</span>
+          </button>
+          <div id="profileDropdown" class="profile-dropdown hidden">
+            <a href="{{ url_for('dashboard') }}" class="dropdown-item">
+              <span>📊</span> Dashboard
+            </a>
+            <a href="{{ url_for('settings') }}" class="dropdown-item">
+              <span>⚙️</span> Settings
+            </a>
+            <a href="{{ url_for('logout') }}" class="dropdown-item">
+              <span>🚪</span> Logout
+            </a>
+          </div>
+        </div>
       </div>
     </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <div class="dashboard-main">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+      <div class="welcome-content">
+        <h1>Welcome, <span class="name-highlight">{{ user.name.split()[0] }}</span></h1>
+        <p>Ready to write without distractions?</p>
+      </div>
+    </div>
+
+    <!-- Projects Section -->
+    <section class="projects-section">
+      <!-- Projects Controls -->
+      <div class="projects-controls-bar">
+        <form method="post" action="{{ url_for('create_project') }}" class="create-form-inline">
+          <input name="title" type="text" placeholder="New project..." maxlength="160" required>
+          <button class="btn primary btn-sm" type="submit">Create</button>
+        </form>
+        <div class="search-box">
+          <input type="text" id="projectSearch" placeholder="Search..." class="search-input">
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-wrap">
+          {% for category, message in messages %}
+          <p class="flash {{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- Projects Grid -->
+      <div class="projects-grid">
+        {% if projects %}
+          {% for project in projects %}
+          <article class="project-card" data-title="{{ project.title|lower }}">
+            <div class="project-card-header">
+              <h3>{{ project.title }}</h3>
+              <span class="project-date">{{ project.updated_at.strftime('%b %d') }}</span>
+            </div>
+            <div class="project-card-preview">{{ project.content.replace('<', '&lt;').replace('>', '&gt;')[:120] }}{% if project.content|length > 120 %}...{% endif %}</div>
+            <div class="project-card-stats">
+              <span class="stat">{{ project.content|length }} chars</span>
+              <span class="stat">{{ (project.content.split()|length) }} words</span>
+            </div>
+            <div class="project-card-actions">
+              <a class="btn primary btn-sm" href="{{ url_for('write_project', project_id=project.id) }}">Continue Writing</a>
+              <button class="project-share-btn" onclick="shareProject({{ project.id }}, '{{ project.title }}')">🔗</button>
+            </div>
+          </article>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <p>No projects yet. Create one to get started!</p>
+          </div>
+        {% endif %}
+      </div>
+    </section>
   </div>
+</main>
 
-  <script>
-    document.getElementById('deleteBtn').addEventListener('click', function() {
-      document.getElementById('deleteModal').classList.remove('hidden');
+<script>
+  // Share project function
+  async function shareProject(projectId, projectTitle) {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/share`, { method: 'POST' });
+      const data = await response.json();
+      
+      if (data.share_url) {
+        // Copy to clipboard
+        navigator.clipboard.writeText(data.share_url).then(() => {
+          alert(`Share link copied to clipboard!\n\n${data.share_url}`);
+        }).catch(() => {
+          // Fallback: show link in prompt
+          prompt('Share link:', data.share_url);
+        });
+      }
+    } catch (error) {
+      alert('Failed to generate share link');
+    }
+  }
+
+  // Theme toggle with sun/moon icons
+  const themeToggle = document.getElementById('themeToggle');
+  const isDarkMode = localStorage.getItem('darkMode') === 'true';
+  
+  // Initialize theme icon
+  updateThemeIcon();
+  
+  function updateThemeIcon() {
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    if (themeToggle) {
+      themeToggle.querySelector('.theme-icon').textContent = isDark ? '🌙' : '☀️';
+    }
+  }
+  
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function() {
+      const currentMode = localStorage.getItem('darkMode') === 'true';
+      const newMode = !currentMode;
+      
+      localStorage.setItem('darkMode', newMode);
+      
+      if (newMode) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+      
+      updateThemeIcon();
+    });
+  }
+
+  // Profile dropdown menu
+  const profileMenuBtn = document.getElementById('profileMenuBtn');
+  const profileDropdown = document.getElementById('profileDropdown');
+
+  if (profileMenuBtn && profileDropdown) {
+    profileMenuBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      profileDropdown.classList.toggle('hidden');
     });
 
-    document.getElementById('cancelBtn').addEventListener('click', function() {
-      document.getElementById('deleteModal').classList.add('hidden');
-    });
-
-    document.getElementById('deleteModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        this.classList.add('hidden');
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.navbar-profile')) {
+        profileDropdown.classList.add('hidden');
       }
     });
-  </script>
-</main>
+  }
+
+  // Project search functionality
+  const searchInput = document.getElementById('projectSearch');
+  if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+      const query = e.target.value.toLowerCase();
+      const projectCards = document.querySelectorAll('.project-card');
+      
+      projectCards.forEach(card => {
+        const title = card.getAttribute('data-title');
+        if (title.includes(query)) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  }
+</script>
 {% endblock %}
+

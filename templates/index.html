@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ project.title }} — Writing{% endblock %}
+{% block title %}{{ project.title }} — MinimēGPT{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
@@ -38,20 +38,20 @@
     <div class="side-toolbar" id="sideToolbar">
       <div class="toolbar-content" id="toolbarContent">
         <!-- Text formatting buttons - icons only -->
-        <button class="toolbar-button" data-format="bold" title="Bold">
+        <button class="toolbar-button" data-format="bold" title="Bold (Ctrl+B)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
             <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
           </svg>
         </button>
-        <button class="toolbar-button" data-format="italic" title="Italic">
+        <button class="toolbar-button" data-format="italic" title="Italic (Ctrl+I)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="19" y1="4" x2="10" y2="4"></line>
             <line x1="14" y1="20" x2="5" y2="20"></line>
             <line x1="15" y1="4" x2="9" y2="20"></line>
           </svg>
         </button>
-        <button class="toolbar-button" data-format="underline" title="Underline">
+        <button class="toolbar-button" data-format="underline" title="Underline (Ctrl+U)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 4v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4"></path>
             <line x1="4" y1="21" x2="20" y2="21"></line>
@@ -59,9 +59,7 @@
         </button>
         <button class="toolbar-button" data-format="strikethrough" title="Strikethrough">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <!-- S shape -->
             <path d="M8 5c0-1 1-2 2-2h4c1 0 2 1 2 2s-1 2-2 2h-4c-1 0-2 1-2 2s1 2 2 2h4c1 0 2 1 2 2s-1 2-2 2h-4c-1 0-2-1-2-2"></path>
-            <!-- Line through -->
             <line x1="4" y1="12" x2="20" y2="12"></line>
           </svg>
         </button>
@@ -86,31 +84,6 @@
             <path d="M4 6h1v4"></path>
             <path d="M4 10h2"></path>
             <path d="M6 18H4c0-1 1-2 2-2s1.5.5 1.5 1.5S7 19 6 19"></path>
-          </svg>
-        </button>
-
-        <div class="toolbar-divider"></div>
-
-        <!-- Font styling options -->
-        <button class="toolbar-button" data-format="fontSize-small" title="Small Font">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <text x="3" y="16" font-size="10" font-weight="bold">A</text>
-            <line x1="13" y1="14" x2="13" y2="18"></line>
-            <line x1="10" y1="14" x2="16" y2="14"></line>
-          </svg>
-        </button>
-        <button class="toolbar-button" data-format="fontSize-normal" title="Normal Font">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <text x="2" y="18" font-size="14" font-weight="bold">A</text>
-            <line x1="14" y1="12" x2="14" y2="18"></line>
-            <line x1="10" y1="12" x2="18" y2="12"></line>
-          </svg>
-        </button>
-        <button class="toolbar-button" data-format="fontSize-large" title="Large Font">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <text x="1" y="20" font-size="18" font-weight="bold">A</text>
-            <line x1="15" y1="10" x2="15" y2="20"></line>
-            <line x1="10" y1="10" x2="20" y2="10"></line>
           </svg>
         </button>
 
@@ -149,10 +122,12 @@
     <!-- Lock overlay: shown when trying to exit fullscreen -->
     <div class="lock-overlay" id="lockOverlay" hidden>
       <div class="lock-modal">
-        <h2>Session Locked</h2>
-        <p>You are in a protected writing session.</p>
-        <p class="lock-hint">You cannot exit fullscreen while the session is active.</p>
-        <button id="endSessionBtn" class="btn btn-primary btn-large">End Session</button>
+        <h2>End Session?</h2>
+        <p>You're in a protected writing session. All distractions are blocked.</p>
+        <div class="lock-modal-actions">
+          <button id="endSessionBtn" class="btn secondary btn-large">End Session</button>
+          <button id="completeProjectBtn" class="btn primary btn-large">Complete Project</button>
+        </div>
       </div>
     </div>
   </div>
@@ -160,11 +135,11 @@
   <!-- Metrics bar: visible during session -->
   <div class="metrics-bar" id="metricsBar" hidden>
     <div class="metrics-group">
-      <span class="metric-label">Words:</span>
+      <span class="metric-label">Words</span>
       <span class="metric-value" id="wordCount">0</span>
     </div>
     <div class="metrics-group">
-      <span class="metric-label">Chars:</span>
+      <span class="metric-label">Characters</span>
       <span class="metric-value" id="charCount">0</span>
     </div>
   </div>
@@ -172,7 +147,7 @@
   <!-- Warning panel: AI blocked notifications -->
   <div class="warning-panel" id="warningPanel" hidden>
     <p class="warning-title">⚠️ Blocked</p>
-    <p class="warning-message" id="warningMessage">Access denied.</p>
+    <p class="warning-message" id="warningMessage">Site access denied during session.</p>
   </div>
 </div>
 
@@ -188,3 +163,4 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/index.js') }}"></script>
 {% endblock %}
+

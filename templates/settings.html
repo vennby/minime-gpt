@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+
+{% block title %}Account Settings - MinimēGPT{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+<style>
+  .settings-page-container {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .settings-page-header {
+    margin-bottom: 3rem;
+  }
+
+  .settings-page-header h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem 0;
+    color: var(--color-text);
+  }
+
+  .settings-page-back {
+    display: inline-block;
+    margin-bottom: 1.5rem;
+  }
+
+  .settings-page-back a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .settings-page-back a:hover {
+    text-decoration: underline;
+  }
+
+  .settings-section {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .settings-section h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 1.5rem 0;
+    color: var(--color-text);
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--color-text);
+    font-size: 0.95rem;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+
+  .info-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .info-item:last-child {
+    border-bottom: none;
+  }
+
+  .info-label {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .info-value {
+    margin: 0.25rem 0 0 0;
+    font-size: 1rem;
+    color: var(--color-text);
+  }
+
+  .settings-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .settings-buttons .btn {
+    flex: 1;
+  }
+
+  .delete-section {
+    border-color: #fee2e2;
+    background: #fef2f2;
+  }
+
+  [data-theme="dark"] .delete-section {
+    background: rgba(127, 29, 29, 0.1);
+    border-color: rgba(127, 29, 29, 0.3);
+  }
+
+  .theme-toggle-btn {
+    background: var(--color-bg-light);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .theme-toggle-btn:hover {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+  }
+
+  .theme-toggle-btn .theme-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+  }
+
+  @media (max-width: 768px) {
+    .settings-page-container {
+      padding: 1rem;
+    }
+
+    .settings-page-header h1 {
+      font-size: 1.5rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-page-container">
+  <div class="settings-page-back">
+    <a href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
+  </div>
+
+  <div class="settings-page-header">
+    <h1>Account Settings</h1>
+  </div>
+
+  <!-- Profile Section -->
+  <div class="settings-section">
+    <h2>Profile</h2>
+    <form id="profileForm" class="settings-form">
+      <div class="form-group">
+        <label for="nameInput">Full Name</label>
+        <input id="nameInput" type="text" value="{{ user.name }}" maxlength="160" placeholder="Your name" required>
+      </div>
+      <button type="submit" class="btn primary">Save Changes</button>
+    </form>
+  </div>
+
+  <!-- Account Information Section -->
+  <div class="settings-section">
+    <h2>Account Information</h2>
+    <div class="info-item">
+      <p class="info-label">Email Address</p>
+      <p class="info-value">{{ user.email }}</p>
+    </div>
+    <div class="info-item">
+      <p class="info-label">Member Since</p>
+      <p class="info-value">{{ user.created_at.strftime('%B %d, %Y') }}</p>
+    </div>
+  </div>
+
+  <!-- Theme Section -->
+  <div class="settings-section">
+    <h2>Appearance</h2>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0;">
+      <label for="themeToggle" style="margin: 0; cursor: pointer;">Dark Mode</label>
+      <button id="themeToggle" class="theme-toggle-btn" aria-label="Toggle dark mode">
+        <span class="theme-icon">☀️</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Actions Section -->
+  <div class="settings-section">
+    <h2>Session</h2>
+    <a href="{{ url_for('logout') }}" class="btn secondary" style="display: block; text-align: center; width: 100%;">Sign Out</a>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="settings-section delete-section">
+    <h2>Danger Zone</h2>
+    <p style="color: var(--color-text-light); margin-bottom: 1rem;">
+      Deleting your account will permanently remove your account and all associated projects. This action cannot be undone.
+    </p>
+    <button id="deleteAccountBtn" class="btn delete" style="width: 100%;">Delete Account Permanently</button>
+  </div>
+</div>
+
+<!-- Delete account confirmation modal -->
+<div id="deleteModal" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-content">
+    <h2>Delete Account Permanently?</h2>
+    <p>This action cannot be undone. All your projects and account data will be permanently deleted.</p>
+    <div class="modal-actions">
+      <button id="cancelBtn" class="btn secondary" type="button">Cancel</button>
+      <form method="post" action="{{ url_for('delete_account') }}" style="display: inline; flex: 1;">
+        <button class="btn delete" type="submit" style="width: 100%;">Delete Everything</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Theme toggle
+  const themeToggle = document.getElementById('themeToggle');
+  const isDarkMode = localStorage.getItem('darkMode') === 'true';
+  
+  // Initialize theme icon
+  updateThemeIcon();
+  
+  function updateThemeIcon() {
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    if (themeToggle) {
+      themeToggle.querySelector('.theme-icon').textContent = isDark ? '🌙' : '☀️';
+    }
+  }
+  
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function() {
+      const currentMode = localStorage.getItem('darkMode') === 'true';
+      const newMode = !currentMode;
+      
+      localStorage.setItem('darkMode', newMode);
+      
+      if (newMode) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+      
+      updateThemeIcon();
+    });
+  }
+
+  // Profile form submission
+  const profileForm = document.getElementById('profileForm');
+  profileForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const nameInput = document.getElementById('nameInput');
+    
+    if (!nameInput.value.trim()) {
+      alert('Please enter a name');
+      return;
+    }
+    
+    // Send update to server
+    fetch('{{ url_for("update_profile") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: nameInput.value.trim()
+      })
+    })
+    .then(response => {
+      if (response.ok) {
+        alert('Profile updated successfully!');
+        location.reload();
+      } else {
+        alert('Failed to update profile');
+      }
+    })
+    .catch(error => {
+      alert('Error updating profile');
+      console.error('Error:', error);
+    });
+  });
+
+  // Delete account functionality
+  document.getElementById('deleteAccountBtn').addEventListener('click', function() {
+    document.getElementById('deleteModal').classList.remove('hidden');
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', function() {
+    document.getElementById('deleteModal').classList.add('hidden');
+  });
+
+  document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      this.classList.add('hidden');
+    }
+  });
+</script>
+{% endblock %}

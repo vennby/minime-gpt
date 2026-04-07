@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - Shared Project{% endblock %}
+
+{% block content %}
+<div class="view-project-container">
+  <div class="view-project-header">
+    <div class="view-project-title-section">
+      <h1>{{ project.title }}</h1>
+      <p class="view-project-info">Shared on {{ project.created_at.strftime('%B %d, %Y') }}</p>
+    </div>
+    <button class="btn primary" onclick="copyShareLink()">Copy Link</button>
+  </div>
+
+  <div class="view-project-content">
+    <div class="project-text">{{ project.content.replace('<', '&lt;').replace('>', '&gt;') }}</div>
+  </div>
+
+  <div class="view-project-footer">
+    <p>This is a read-only shared view. Changes cannot be made to this project.</p>
+  </div>
+</div>
+
+<style>
+  .view-project-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .view-project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 2rem;
+  }
+
+  .view-project-title-section h1 {
+    margin: 0 0 0.5rem 0;
+    color: var(--color-text);
+    font-size: 2.5rem;
+  }
+
+  .view-project-info {
+    margin: 0;
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+  }
+
+  .view-project-content {
+    flex: 1;
+    margin-bottom: 2rem;
+  }
+
+  .project-text {
+    color: var(--color-text);
+    line-height: 1.8;
+    font-size: 1rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+
+  .view-project-footer {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 768px) {
+    .view-project-container {
+      padding: 1rem;
+    }
+
+    .view-project-header {
+      flex-direction: column;
+    }
+
+    .view-project-title-section h1 {
+      font-size: 1.75rem;
+    }
+  }
+</style>
+
+<script>
+  function copyShareLink() {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Link copied to clipboard!');
+    }).catch(() => {
+      prompt('Copy this link:', url);
+    });
+  }
+</script>
+{% endblock %}

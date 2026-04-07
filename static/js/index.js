@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const lockOverlay = document.getElementById("lockOverlay");
   const startSessionBtn = document.getElementById("startSessionBtn");
   const endSessionBtn = document.getElementById("endSessionBtn");
+  const completeProjectBtn = document.getElementById("completeProjectBtn");
   const warningPanel = document.getElementById("warningPanel");
   const warningMessage = document.getElementById("warningMessage");
   const wordCount = document.getElementById("wordCount");
@@ -67,6 +68,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setTimeout(() => {
       window.location.href = '/dashboard';
+    }, 200);
+  }
+
+  async function completeProject() {
+    state.active = false;
+    state.locked = false;
+
+    await saveDocument();
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+
+    // Export PDF and delete project
+    setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/projects/${project.id}/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${project.title}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          // Redirect after download
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 500);
+        }
+      } catch (err) {
+        console.error('Error completing project:', err);
+        window.location.href = '/dashboard';
+      }
     }, 200);
   }
 
@@ -246,6 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   startSessionBtn.addEventListener('click', startSession);
   endSessionBtn.addEventListener('click', endSession);
+  completeProjectBtn.addEventListener('click', completeProject);
 
   // Dark mode toggle
   if (darkModeToggle) {
