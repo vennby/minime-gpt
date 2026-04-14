@@ -3,33 +3,22 @@
 {% block title %}MinimēGPT - Distraction-Free Writing{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 {% endblock %}
 
 {% block content %}
-<main class="page-shell">
-  <section class="hero-card">
-    <p class="eyebrow">Academic Writing Platform</p>
-    <h1>Write without interference.</h1>
-    <p class="lead">MinimēGPT provides a distraction-free writing environment with intelligent protections for authentic academic work. Start focused sessions with fullscreen lock, AI-blocking technology, and automatic saving.</p>
-
-    <div class="actions">
+<main class="landing-main">
+  <div class="landing-center">
+    <h1 class="brand-name">MinimēGPT</h1>
+    
+    <div class="action-buttons">
       {% if current_user %}
-      <a class="btn primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
+      <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Go to Dashboard</a>
       {% else %}
-      <a class="btn primary" href="{{ url_for('login') }}">Sign In</a>
-      <a class="btn secondary" href="{{ url_for('register') }}">Create Account</a>
+      <a class="btn btn-primary" href="{{ url_for('login') }}">Get Started</a>
+      <a class="btn btn-secondary" href="{{ url_for('register') }}">Sign Up</a>
       {% endif %}
     </div>
-
-    <ul class="feature-list">
-      <li><strong>Fullscreen Lock:</strong> Sessions are protected once started—you cannot exit until explicitly ended</li>
-      <li><strong>AI Blocking:</strong> Intelligent detection prevents access to ChatGPT, Claude, and other AI tools during writing</li>
-      <li><strong>Distraction-Free:</strong> Minimal, elegant interface focused entirely on your writing</li>
-      <li><strong>Auto-Save:</strong> Your progress is continuously saved with real-time status indicators</li>
-      <li><strong>Rich Formatting:</strong> Support for text styling, lists, and alignment without the clutter</li>
-    </ul>
-  </section>
+  </div>
 </main>
 {% endblock %}
-
