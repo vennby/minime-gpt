@@ -903,6 +903,7 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .project-card-header h3 {
@@ -913,37 +914,35 @@ body {
   flex: 1;
 }
 
-.project-date {
-  font-size: 0.8rem;
-  color: var(--color-text-lighter);
-  white-space: nowrap;
-  background: var(--color-bg-light);
-  padding: 0.25rem 0.625rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-}
-
-.project-card-preview {
-  color: var(--color-text-light);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.project-card-stats {
+.project-card-metadata {
   display: flex;
-  gap: var(--spacing-lg);
-  font-size: 0.85rem;
-  padding-top: var(--spacing-sm);
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
   border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--spacing-md);
 }
 
-.stat {
+.metadata-item {
+  flex: 1;
+  text-align: center;
+}
+
+.metadata-label {
+  display: block;
+  font-size: 0.7rem;
   color: var(--color-text-lighter);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin-bottom: 0.2rem;
+}
+
+.metadata-value {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .project-card-actions {

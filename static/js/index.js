@@ -17,6 +17,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const startSessionBtn = document.getElementById("startSessionBtn");
   const endSessionBtn = document.getElementById("endSessionBtn");
   const completeProjectBtn = document.getElementById("completeProjectBtn");
+  const saveSessionBtn = document.getElementById("saveSessionBtn");
+  const exitSessionBtn = document.getElementById("exitSessionBtn");
   const warningPanel = document.getElementById("warningPanel");
   const warningMessage = document.getElementById("warningMessage");
   const wordCount = document.getElementById("wordCount");
@@ -289,6 +291,18 @@ document.addEventListener("DOMContentLoaded", () => {
   startSessionBtn.addEventListener('click', startSession);
   endSessionBtn.addEventListener('click', endSession);
   completeProjectBtn.addEventListener('click', completeProject);
+  
+  // Toolbar save and exit buttons
+  if (saveSessionBtn) {
+    saveSessionBtn.addEventListener('click', () => {
+      saveProject();
+      updateStatus('Saved', 'saved');
+    });
+  }
+  
+  if (exitSessionBtn) {
+    exitSessionBtn.addEventListener('click', endSession);
+  }
 
   // Dark mode toggle
   if (darkModeToggle) {

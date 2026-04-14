@@ -73,12 +73,16 @@
           <article class="project-card" data-title="{{ project.title|lower }}">
             <div class="project-card-header">
               <h3>{{ project.title }}</h3>
-              <span class="project-date">{{ project.updated_at.strftime('%b %d') }}</span>
             </div>
-            <div class="project-card-preview">{{ project.content.replace('<', '&lt;').replace('>', '&gt;')[:120] }}{% if project.content|length > 120 %}...{% endif %}</div>
-            <div class="project-card-stats">
-              <span class="stat">{{ project.content|length }} chars</span>
-              <span class="stat">{{ (project.content.split()|length) }} words</span>
+            <div class="project-card-metadata">
+              <div class="metadata-item">
+                <span class="metadata-label">Words</span>
+                <span class="metadata-value">{{ (project.content.split()|length) }}</span>
+              </div>
+              <div class="metadata-item">
+                <span class="metadata-label">Last Edit</span>
+                <span class="metadata-value">{{ project.updated_at.strftime('%b %d, %H:%M') }}</span>
+              </div>
             </div>
             <div class="project-card-actions">
               <a class="btn primary btn-sm" href="{{ url_for('write_project', project_id=project.id) }}">Continue Writing</a>

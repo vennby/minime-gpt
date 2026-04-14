@@ -329,8 +329,8 @@ html[data-theme="dark"] .status-indicator.saved {
 .side-toolbar {
   position: fixed;
   left: 0;
-  top: 46px;
-  height: calc(100vh - 46px);
+  top: 0;
+  height: 100vh;
   width: 70px;
   background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
   border-right: 1.5px solid var(--border-color);
@@ -359,9 +359,15 @@ html[data-theme="dark"] .status-indicator.saved {
   flex-shrink: 0;
 }
 
+.toolbar-action-btn {
+  margin-top: auto;
+  padding: 6px;
+  font-size: 0.9rem;
+}
+
 .toolbar-button {
   width: 70px;
-  height: 48px;
+  height: 40px;
   border: none;
   background: none;
   cursor: pointer;
@@ -372,9 +378,9 @@ html[data-theme="dark"] .status-indicator.saved {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .toolbar-button:hover {
