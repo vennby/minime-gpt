@@ -37,7 +37,25 @@
     <!-- Side toolbar: collapsible formatting panel -->
     <div class="side-toolbar" id="sideToolbar">
       <div class="toolbar-content" id="toolbarContent">
-        <!-- Text formatting buttons - icons only -->
+        <!-- Undo / Redo -->
+        <button class="toolbar-button" data-action="undo" title="Undo (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+        </button>
+        <button class="toolbar-button" data-action="redo" title="Redo (Ctrl+Y)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+        </button>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Headings -->
+        <button class="toolbar-button" data-format="h1" title="Heading 1">H1</button>
+        <button class="toolbar-button" data-format="h2" title="Heading 2">H2</button>
+        <button class="toolbar-button" data-format="h3" title="Heading 3">H3</button>
+        <button class="toolbar-button" data-format="paragraph" title="Normal paragraph">¶</button>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Text formatting -->
         <button class="toolbar-button" data-format="bold" title="Bold (Ctrl+B)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
@@ -63,9 +81,13 @@
             <line x1="4" y1="12" x2="20" y2="12"></line>
           </svg>
         </button>
+        <button class="toolbar-button" data-action="clearFormat" title="Clear formatting">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+        </button>
 
         <div class="toolbar-divider"></div>
 
+        <!-- Lists & structure -->
         <button class="toolbar-button" data-format="bulletList" title="Bullet List">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="5" cy="6" r="1"></circle>
@@ -86,10 +108,22 @@
             <path d="M6 18H4c0-1 1-2 2-2s1.5.5 1.5 1.5S7 19 6 19"></path>
           </svg>
         </button>
+        <button class="toolbar-button" data-format="blockquote" title="Blockquote">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3-3 3-5 3-8V7h6v6c0 3-2 5-5 6"/><path d="M13 21c3-3 3-5 3-8V7h6v6c0 3-2 5-5 6"/></svg>
+        </button>
+        <button class="toolbar-button" data-format="horizontalRule" title="Section break">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/></svg>
+        </button>
+        <button class="toolbar-button" data-format="indent" title="Increase indent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="7 8 7 16"/></svg>
+        </button>
+        <button class="toolbar-button" data-format="outdent" title="Decrease indent">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="11 8 11 16"/></svg>
+        </button>
 
         <div class="toolbar-divider"></div>
 
-        <!-- Text alignment options -->
+        <!-- Alignment -->
         <button class="toolbar-button" data-format="alignLeft" title="Align Left">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -111,25 +145,44 @@
             <line x1="6" y1="18" x2="21" y2="18"></line>
           </svg>
         </button>
+        <button class="toolbar-button" data-format="alignJustify" title="Justify">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Writer tools -->
+        <button class="toolbar-button" data-action="insertDate" title="Insert date & time">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </button>
+        <button class="toolbar-button" data-action="toggleSerif" title="Toggle serif font" id="serifToggleBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="6" y="17" font-size="14" fill="currentColor" stroke="none" font-family="Georgia, serif">Aa</text></svg>
+        </button>
+        <button class="toolbar-button" data-action="cycleLineHeight" title="Line spacing" id="lineHeightBtn">1.75</button>
+        <button class="toolbar-button" data-action="toggleFocusMode" title="Focus mode (dim other paragraphs)" id="focusModeBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+        <button class="toolbar-button" data-action="wordGoal" title="Set word goal" id="wordGoalBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        </button>
 
         <div class="toolbar-divider"></div>
 
         <!-- Session control buttons -->
-        <button id="saveSessionBtn" class="toolbar-button toolbar-action-btn" title="Save Session" style="color: #22c55e;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-          </svg>
-        </button>
-        <button id="exitSessionBtn" class="toolbar-button toolbar-action-btn" title="Exit Session" style="color: #ef4444;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 6 13.46 15.89"></polyline>
-            <polyline points="23 20 13 10"></polyline>
-            <path d="M20 4H10a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
-            <line x1="6" y1="9" x2="6" y2="9"></line>
-          </svg>
-        </button>
+        <div class="toolbar-footer">
+          <button id="saveSessionBtn" class="toolbar-button toolbar-action-btn toolbar-save" title="Save now (Ctrl+Shift+S)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+          </button>
+          <button id="exitSessionBtn" class="toolbar-button toolbar-action-btn toolbar-exit" title="Exit session">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -160,6 +213,29 @@
     <div class="metrics-group">
       <span class="metric-label">Characters</span>
       <span class="metric-value" id="charCount">0</span>
+    </div>
+    <div class="metrics-group">
+      <span class="metric-label">Reading</span>
+      <span class="metric-value" id="readingTime">0 min</span>
+    </div>
+    <div class="metrics-group">
+      <span class="metric-label">Session</span>
+      <span class="metric-value" id="sessionTime">0:00</span>
+    </div>
+    <div class="metrics-group metrics-goal" id="goalGroup" hidden>
+      <span class="metric-label">Goal</span>
+      <span class="metric-value" id="goalProgress">0%</span>
+      <div class="goal-bar"><div class="goal-bar-fill" id="goalBarFill"></div></div>
+    </div>
+  </div>
+
+  <!-- Word goal popover -->
+  <div class="toolbar-popover hidden" id="wordGoalPopover">
+    <p class="popover-title">Word Goal</p>
+    <input type="number" id="wordGoalInput" min="0" step="100" placeholder="e.g. 500">
+    <div class="popover-actions">
+      <button type="button" class="btn btn-sm" id="clearGoalBtn">Clear</button>
+      <button type="button" class="btn btn-sm btn-primary" id="setGoalBtn">Set Goal</button>
     </div>
   </div>
 

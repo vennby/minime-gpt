@@ -164,6 +164,7 @@
 {% endblock %}
 
 {% block content %}
+<main class="scroll-page-shell">
 <div class="settings-page-container">
   <div class="settings-page-back">
     <a href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
@@ -224,6 +225,7 @@
     <button id="deleteAccountBtn" class="btn delete" style="width: 100%;">Delete Account Permanently</button>
   </div>
 </div>
+</main>
 
 <!-- Delete account confirmation modal -->
 <div id="deleteModal" class="modal hidden">

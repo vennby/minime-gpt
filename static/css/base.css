@@ -9,6 +9,7 @@
   --color-text-lighter: #94a3b8;
   --color-bg: #ffffff;
   --color-bg-light: #f8fafc;
+  --color-bg-secondary: #f8fafc;
   --color-bg-lighter: #f1f5f9;
   --color-border: #e2e8f0;
   --color-border-light: #cbd5e1;
@@ -48,6 +49,7 @@
   --color-text-lighter: #94a3b8;
   --color-bg: #0f172a;
   --color-bg-light: #1e293b;
+  --color-bg-secondary: #1e293b;
   --color-bg-lighter: #334155;
   --color-border: #334155;
   --color-border-light: #475569;
@@ -62,11 +64,14 @@
   box-sizing: border-box;
 }
 
-html,
+html {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  min-height: 100%;
   font-family: var(--font-family);
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   color: var(--color-text);

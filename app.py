@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from authlib.integrations.flask_client import OAuth
+from authlib.integrations.base_client.errors import OAuthError, MismatchingStateError
 from datetime import datetime
 from functools import wraps
 import os
@@ -28,13 +29,11 @@ google = oauth.register(
     client_secret=os.getenv('GOOGLE_CLIENT_SECRET'),
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={'scope': 'openid profile email'},
-    authorize_url='https://accounts.google.com/o/oauth2/v2/auth',
-    authorize_params=None,
-    access_token_url='https://www.googleapis.com/oauth2/v4/token',
-    access_token_params=None,
-    refresh_token_url='https://www.googleapis.com/oauth2/v4/token',
-    redirect_to='auth_callback'
 )
+
+
+def get_oauth_redirect_uri():
+    return os.getenv('REDIRECT_URI', url_for('auth_callback', _external=True, _scheme='http'))
 
 # ============================================================================
 # Models
@@ -107,10 +106,12 @@ def login():
 @app.route('/auth/google')
 def auth_google():
     try:
-        # Use localhost consistently for local development
-        redirect_uri = os.getenv('REDIRECT_URI', url_for('auth_callback', _external=True, _scheme='http'))
-        return google.authorize_redirect(redirect_uri)
-    except Exception as e:
+        if not os.getenv('GOOGLE_CLIENT_ID') or not os.getenv('GOOGLE_CLIENT_SECRET'):
+            error_msg = 'Google sign-in is not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file.'
+            return render_template('error.html', error=error_msg, error_code=500), 500
+        return google.authorize_redirect(get_oauth_redirect_uri())
+    except Exception:
+        app.logger.exception('Failed to start Google sign-in')
         error_msg = 'We couldn\'t start the Google sign-in process. Please try again or contact support if the problem persists.'
         return render_template('error.html', error=error_msg, error_code=500), 500
 
@@ -124,6 +125,9 @@ def auth_callback():
             return render_template('error.html', error=error_msg, error_code=401), 401
         
         user_info = token.get('userinfo')
+        if not user_info:
+            resp = google.get('https://www.googleapis.com/oauth2/v3/userinfo')
+            user_info = resp.json()
         
         if not user_info:
             error_msg = 'We couldn\'t retrieve your Google profile. Please try signing in again.'
@@ -173,12 +177,35 @@ def auth_callback():
             session['user_id'] = user.id
             return redirect(url_for('dashboard'))
         
-        except Exception as db_error:
+        except Exception:
             db.session.rollback()
+            app.logger.exception('Database error during sign-in')
             error_msg = 'Database error during sign-in. Please try again.'
             return render_template('error.html', error=error_msg, error_code=500), 500
     
-    except Exception as e:
+    except MismatchingStateError:
+        app.logger.exception('OAuth state mismatch during sign-in')
+        error_msg = (
+            'Your sign-in session expired or was interrupted. '
+            'Please try again without opening the login page in multiple tabs.'
+        )
+        return render_template('error.html', error=error_msg, error_code=400), 400
+    except OAuthError as e:
+        app.logger.exception('OAuth error during sign-in')
+        if e.error == 'invalid_client':
+            error_msg = (
+                'Google sign-in credentials are invalid. '
+                'Update GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env with values from Google Cloud Console.'
+            )
+        elif e.error == 'redirect_uri_mismatch':
+            error_msg = (
+                f'Redirect URI mismatch. Add this exact URL to your Google OAuth app: {get_oauth_redirect_uri()}'
+            )
+        else:
+            error_msg = f'Google sign-in failed ({e.error}). Please try again.'
+        return render_template('error.html', error=error_msg, error_code=500), 500
+    except Exception:
+        app.logger.exception('Unexpected error during sign-in')
         error_msg = 'An unexpected error occurred during sign-in. Please try again.'
         return render_template('error.html', error=error_msg, error_code=500), 500
 
