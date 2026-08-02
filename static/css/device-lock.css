@@ -1,0 +1,40 @@
+#companionLockOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+#companionLockOverlay[hidden] {
+  display: none !important;
+}
+
+.companion-lock-card {
+  max-width: 420px;
+  text-align: center;
+  color: #f1f5f9;
+}
+
+.companion-lock-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #818cf8;
+  margin: 0 0 1rem;
+}
+
+.companion-lock-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.75rem;
+}
+
+.companion-lock-card p {
+  margin: 0;
+  color: #94a3b8;
+  line-height: 1.7;
+}

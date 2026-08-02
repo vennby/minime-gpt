@@ -4,8 +4,82 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  const project = window.MINIME_PROJECT || null;
+  const bootEl = document.getElementById("minime-config");
+  let boot = {};
+  try {
+    boot = JSON.parse(bootEl?.textContent || "{}");
+  } catch {
+    boot = {};
+  }
+  const project = boot.project || window.MINIME_PROJECT || null;
   if (!project) return;
+
+  const gate = window.MinimeClipboardGate;
+  const startWriter = () => initWriter(boot, project);
+
+  if (gate?.install) {
+    gate.install().then((ok) => {
+      if (ok) startWriter();
+      // if not ok, gate already redirected away
+    });
+  } else {
+    // Fail closed: no gate script → do not serve writer.
+    window.location.replace("/dashboard?clipboard_blocked=1");
+  }
+});
+
+function initWriter(boot, project) {
+  const CSRF_TOKEN = boot.csrf || window.MINIME_CSRF || "";
+  const guard = window.MinimeSessionGuard;
+
+  function apiHeaders() {
+    return {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": CSRF_TOKEN,
+    };
+  }
+
+  function syncGuardState() {
+    if (guard) {
+      guard.setActive(state.active, state.locked);
+    }
+  }
+
+  function updateToolbarOffset() {
+    const container = document.querySelector(".editor-container");
+    if (!container) return;
+    const visible =
+      sideToolbar &&
+      !sideToolbar.hidden &&
+      sideToolbar.style.display !== "none";
+    const collapsed = sideToolbar?.getAttribute("data-collapsed") === "true";
+    const width = !visible ? "0px" : collapsed ? "64px" : "212px";
+    container.style.setProperty("--toolbar-offset", width);
+  }
+
+  function setSidebarVisible(visible) {
+    if (!sideToolbar) return;
+    sideToolbar.hidden = !visible;
+    sideToolbar.style.display = visible ? "flex" : "none";
+    updateToolbarOffset();
+  }
+
+  function toggleSidebarCollapsed() {
+    if (!sideToolbar) return;
+    const next = sideToolbar.getAttribute("data-collapsed") !== "true";
+    sideToolbar.setAttribute("data-collapsed", next ? "true" : "false");
+    localStorage.setItem("minime_toolbar_collapsed", next ? "1" : "0");
+    if (toolbarCollapseBtn) {
+      toolbarCollapseBtn.title = next ? "Expand sidebar" : "Collapse sidebar";
+    }
+    updateToolbarOffset();
+  }
+
+  function restoreSidebarCollapsed() {
+    const collapsed = localStorage.getItem("minime_toolbar_collapsed") === "1";
+    sideToolbar?.setAttribute("data-collapsed", collapsed ? "true" : "false");
+    updateToolbarOffset();
+  }
 
   // DOM Elements
   const editor = document.getElementById("editor");
@@ -16,7 +90,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const lockOverlay = document.getElementById("lockOverlay");
   const startSessionBtn = document.getElementById("startSessionBtn");
   const endSessionBtn = document.getElementById("endSessionBtn");
+  const resumeSessionBtn = document.getElementById("resumeSessionBtn");
   const completeProjectBtn = document.getElementById("completeProjectBtn");
+  const pageSizeSelect = document.getElementById("pageSizeSelect");
   const saveSessionBtn = document.getElementById("saveSessionBtn");
   const exitSessionBtn = document.getElementById("exitSessionBtn");
   const warningPanel = document.getElementById("warningPanel");
@@ -29,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const goalProgress = document.getElementById("goalProgress");
   const goalBarFill = document.getElementById("goalBarFill");
   const sideToolbar = document.getElementById("sideToolbar");
-  const darkModeToggle = document.getElementById("darkModeToggle");
+  const toolbarCollapseBtn = document.getElementById("toolbarCollapseBtn");
   const toolbarButtons = document.querySelectorAll("[data-format]");
   const actionButtons = document.querySelectorAll("[data-action]");
   const wordGoalPopover = document.getElementById("wordGoalPopover");
@@ -38,8 +114,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearGoalBtn = document.getElementById("clearGoalBtn");
   const wordGoalBtn = document.getElementById("wordGoalBtn");
   const lineHeightBtn = document.getElementById("lineHeightBtn");
+  const lineHeightGlyph = document.getElementById("lineHeightGlyph");
   const focusModeBtn = document.getElementById("focusModeBtn");
   const serifToggleBtn = document.getElementById("serifToggleBtn");
+  const sessionPrepOverlay = document.getElementById("sessionPrepOverlay");
+  const scanDevicesBtn = document.getElementById("scanDevicesBtn");
+  const pairingPanel = document.getElementById("pairingPanel");
+  const pairingLink = document.getElementById("pairingLink");
+  const pairingCode = document.getElementById("pairingCode");
+  const scanStatus = document.getElementById("scanStatus");
+  const deviceList = document.getElementById("deviceList");
+  const deviceListEmpty = document.getElementById("deviceListEmpty");
+  const cancelPrepBtn = document.getElementById("cancelPrepBtn");
+  const confirmStartBtn = document.getElementById("confirmStartBtn");
+
+  const devicesApi = window.MinimeDevices;
 
   const LINE_HEIGHTS = [1.5, 1.75, 2, 2.25];
   const GOAL_KEY = `minime_goal_${project.id}`;
@@ -55,16 +144,37 @@ document.addEventListener("DOMContentLoaded", () => {
     focusMode: false,
     lineHeightIndex: 1,
     wordGoal: 0,
+    pairingCode: null,
+    pairingPollTimer: null,
+    linkedDevices: [],
   };
 
-  // AI domains to block
-  const AI_DOMAINS = [
-    "openai.com", "chat.openai.com", "chatgpt.com",
-    "claude.ai", "claude.com",
-    "bard.google.com", "gemini.google.com",
-    "copilot.microsoft.com",
-    "perplexity.ai", "poe.com", "character.ai",
-  ];
+  function getDeviceUid() {
+    if (devicesApi?.deviceUid) return devicesApi.deviceUid();
+    let id = localStorage.getItem("minime_device_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("minime_device_id", id);
+    }
+    return id;
+  }
+
+  async function stopSessionLock() {
+    try {
+      await fetch("/api/session/stop", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({ device_uid: getDeviceUid() }),
+      });
+    } catch {
+      /* ignore */
+    }
+    devicesApi?.hideCompanionLock?.();
+  }
+
+  if (guard) {
+    guard.setConfig(boot.security || window.MINIME_SECURITY || {});
+  }
 
   // ==================== PREFERENCES ====================
 
@@ -97,6 +207,211 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
+  // ==================== SESSION PREP (MULTI-DEVICE) ====================
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  async function openSessionPrep() {
+    sessionPrepOverlay?.classList.remove("hidden");
+    // Grant host lock consent first so a solo device can start without pairing.
+    await ensureHostConsent();
+    await loadLinkedDevices();
+  }
+
+  function closeSessionPrep() {
+    sessionPrepOverlay?.classList.add("hidden");
+    stopPairingPoll();
+  }
+
+  function stopPairingPoll() {
+    if (state.pairingPollTimer) {
+      clearInterval(state.pairingPollTimer);
+      state.pairingPollTimer = null;
+    }
+  }
+
+  async function loadLinkedDevices() {
+    try {
+      const res = await fetch(
+        `/api/devices?device_uid=${encodeURIComponent(getDeviceUid())}`,
+        { headers: { "X-Minime-Device-Id": getDeviceUid() } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      state.linkedDevices = data.devices || [];
+      renderDeviceList();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function renderDeviceList() {
+    if (!deviceList) return;
+    deviceList.innerHTML = "";
+    const devices = state.linkedDevices;
+    const currentUid = getDeviceUid();
+
+    // Ensure the host appears even if the API list is briefly empty after register.
+    if (!devices.some((d) => d.device_uid === currentUid)) {
+      devices.unshift({
+        device_uid: currentUid,
+        label: devicesApi?.defaultLabel?.() || "This device",
+        consent_lock: true,
+        is_current: true,
+      });
+    }
+
+    if (!devices.length) {
+      deviceListEmpty?.classList.remove("hidden");
+      if (confirmStartBtn) confirmStartBtn.disabled = true;
+      return;
+    }
+    deviceListEmpty?.classList.add("hidden");
+
+    devices.forEach((device) => {
+      const row = document.createElement("div");
+      row.className = "device-row" + (device.is_current ? " is-current" : "");
+      const isCurrent = device.device_uid === currentUid || device.is_current;
+      const canSelect = isCurrent || device.consent_lock;
+      const checked = isCurrent || (device.consent_lock && device.is_current);
+      const label = escapeHtml(device.label || "Device");
+      const status = isCurrent
+        ? "This device (host)"
+        : device.consent_lock
+          ? "Lock consent granted"
+          : "No lock consent — link via pairing";
+      row.innerHTML = `
+        <input type="checkbox" id="dev-${escapeHtml(device.device_uid)}" data-uid="${escapeHtml(device.device_uid)}"
+          ${checked ? "checked" : ""} ${canSelect ? "" : "disabled"}>
+        <label for="dev-${escapeHtml(device.device_uid)}">
+          ${label}${isCurrent ? " (this device)" : ""}
+          <small>${status}</small>
+        </label>`;
+      deviceList.appendChild(row);
+      row.querySelector("input")?.addEventListener("change", updateConfirmStartState);
+    });
+    updateConfirmStartState();
+  }
+
+  function selectedDeviceUids() {
+    if (!deviceList) return [];
+    return [...deviceList.querySelectorAll("input[type=checkbox]:checked")].map(
+      (el) => el.dataset.uid
+    );
+  }
+
+  function updateConfirmStartState() {
+    const selected = selectedDeviceUids();
+    if (confirmStartBtn) {
+      // Solo host is enough; always allow if current device is selected or list empty-after-consent.
+      confirmStartBtn.disabled = selected.length === 0;
+    }
+  }
+
+  async function startPairingScan() {
+    try {
+      const res = await fetch("/api/devices/pairing-code", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({ device_uid: getDeviceUid() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not start pairing");
+
+      state.pairingCode = data.code;
+      pairingPanel?.classList.remove("hidden");
+      if (pairingLink) pairingLink.value = data.link;
+      if (pairingCode) pairingCode.textContent = data.code;
+      if (scanStatus) scanStatus.textContent = "Waiting for devices to join…";
+
+      stopPairingPoll();
+      state.pairingPollTimer = setInterval(pollPairingDevices, 2500);
+      pollPairingDevices();
+    } catch (err) {
+      showWarning(err.message || "Pairing failed");
+    }
+  }
+
+  async function pollPairingDevices() {
+    if (!state.pairingCode) return;
+    const prevCount = state.linkedDevices.filter((d) => d.consent_lock).length;
+    try {
+      const res = await fetch(`/api/devices/pairing-code/${state.pairingCode}`, {
+        headers: { "X-Minime-Device-Id": getDeviceUid() },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.valid) {
+        if (scanStatus) scanStatus.textContent = "Pairing code expired. Generate a new one.";
+        stopPairingPoll();
+        return;
+      }
+      state.linkedDevices = data.devices || [];
+      renderDeviceList();
+      const count = state.linkedDevices.filter((d) => d.consent_lock).length;
+      if (count > prevCount && scanStatus) {
+        scanStatus.textContent = `Device found! ${count} device(s) ready to lock.`;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function ensureHostConsent() {
+    const uid = getDeviceUid();
+    const host = state.linkedDevices.find((d) => d.device_uid === uid);
+    if (host?.consent_lock) return true;
+
+    await fetch("/api/devices/register", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        device_uid: uid,
+        label: devicesApi?.defaultLabel?.() || "This device",
+        platform: navigator.platform || "",
+        consent_lock: true,
+      }),
+    });
+    return true;
+  }
+
+  async function confirmStartSession() {
+    let selected = selectedDeviceUids();
+    const hostUid = getDeviceUid();
+    if (!selected.includes(hostUid)) {
+      selected = [hostUid, ...selected];
+    }
+    if (!selected.length) return;
+
+    await ensureHostConsent();
+
+    try {
+      const res = await fetch("/api/session/start", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          project_id: project.id,
+          host_device_uid: hostUid,
+          device_uids: selected,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not start session lock");
+
+      closeSessionPrep();
+      await startSession();
+    } catch (err) {
+      showWarning(err.message || "Failed to start session");
+    }
+  }
+
   // ==================== SESSION CONTROL ====================
 
   async function startSession() {
@@ -111,7 +426,20 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Fullscreen denied:", err);
       state.active = false;
       stopSessionTimer();
+      // Roll back server-side lock so companions are not stuck.
+      await stopSessionLock();
       showWarning("Fullscreen required. Please try again.");
+      applyDraftEditorMode();
+    }
+  }
+
+  async function resumeSession() {
+    if (!state.active) return;
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch (err) {
+      console.error("Fullscreen denied:", err);
+      showWarning("Fullscreen required to continue the session.");
     }
   }
 
@@ -121,6 +449,7 @@ document.addEventListener("DOMContentLoaded", () => {
     stopSessionTimer();
 
     await saveDocument();
+    await stopSessionLock();
 
     if (document.fullscreenElement) {
       await document.exitFullscreen().catch(() => {});
@@ -137,6 +466,7 @@ document.addEventListener("DOMContentLoaded", () => {
     stopSessionTimer();
 
     await saveDocument();
+    await stopSessionLock();
 
     if (document.fullscreenElement) {
       await document.exitFullscreen().catch(() => {});
@@ -146,7 +476,10 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const res = await fetch(`/api/projects/${project.id}/complete`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: apiHeaders(),
+          body: JSON.stringify({
+            page_size: pageSizeSelect?.value || "letter",
+          }),
         });
 
         if (res.ok) {
@@ -163,10 +496,15 @@ document.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => {
             window.location.href = "/dashboard";
           }, 500);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showWarning(data.error || "Could not complete project");
+          applyDraftEditorMode();
         }
       } catch (err) {
         console.error("Error completing project:", err);
-        window.location.href = "/dashboard";
+        showWarning("Could not complete project");
+        applyDraftEditorMode();
       }
     }, 200);
   }
@@ -194,24 +532,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ==================== FULLSCREEN STATE MACHINE ====================
 
+  function applyDraftEditorMode() {
+    topbar.style.display = "flex";
+    setSidebarVisible(true);
+    lockOverlay.hidden = true;
+    metricsBar.hidden = true;
+    editor.contentEditable = "true";
+    editor.classList.remove("editor-locked");
+    editor.classList.add("editor-preview");
+    if (state.focusMode) editor.classList.add("editor-focus-mode");
+    else editor.classList.remove("editor-focus-mode");
+    syncGuardState();
+  }
+
   function onFullscreenChange() {
     const inFullscreen = !!document.fullscreenElement;
 
     if (!state.active) {
-      topbar.style.display = "flex";
-      sideToolbar.style.display = "none";
-      lockOverlay.hidden = true;
-      metricsBar.hidden = true;
-      editor.contentEditable = "false";
-      editor.classList.remove("editor-locked", "editor-focus-mode");
-      editor.classList.add("editor-preview");
+      applyDraftEditorMode();
       return;
     }
 
     if (inFullscreen && !state.locked) {
       state.locked = true;
       topbar.style.display = "none";
-      sideToolbar.style.display = "flex";
+      setSidebarVisible(true);
       lockOverlay.hidden = true;
       metricsBar.hidden = false;
       editor.contentEditable = "true";
@@ -220,6 +565,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (state.focusMode) editor.classList.add("editor-focus-mode");
       editor.focus();
       updateMetrics();
+      syncGuardState();
     } else if (!inFullscreen && state.locked) {
       state.locked = false;
       lockOverlay.hidden = false;
@@ -227,16 +573,18 @@ document.addEventListener("DOMContentLoaded", () => {
       editor.contentEditable = "false";
       editor.classList.remove("editor-locked", "editor-focus-mode");
       editor.classList.add("editor-preview");
-      sideToolbar.style.display = "none";
-      showWarning('Fullscreen exited. You must end the session.');
+      setSidebarVisible(false);
+      showWarning("Fullscreen exited. Return to continue, or end the session.");
+      syncGuardState();
     } else if (!inFullscreen && !state.locked) {
       topbar.style.display = "flex";
-      sideToolbar.style.display = "none";
-      lockOverlay.hidden = true;
+      setSidebarVisible(false);
+      lockOverlay.hidden = false;
       metricsBar.hidden = true;
       editor.contentEditable = "false";
       editor.classList.remove("editor-locked", "editor-focus-mode");
       editor.classList.add("editor-preview");
+      syncGuardState();
     }
   }
 
@@ -249,7 +597,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const res = await fetch(`/api/projects/${project.id}/autosave`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: apiHeaders(),
         body: JSON.stringify({ content, title }),
       });
 
@@ -282,7 +630,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function debounceAutoSave() {
     if (state.saveTimer) clearTimeout(state.saveTimer);
     state.saveTimer = setTimeout(() => {
-      if (state.active) saveDocument();
+      // Draft mode and locked sessions both persist.
+      if (!state.active || state.locked) saveDocument();
     }, 250);
   }
 
@@ -313,16 +662,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ==================== AI BLOCKING ====================
+  // ==================== AI & NAVIGATION BLOCKING ====================
 
-  function isAIDomain(url) {
-    try {
-      const hostname = new URL(url).hostname.toLowerCase();
-      return AI_DOMAINS.some((d) => hostname.includes(d));
-    } catch {
-      return false;
+  function purgeEditorContent() {
+    if (guard?.purgeEditor(editor)) {
+      debounceAutoSave();
     }
   }
+
+  document.addEventListener("click", (e) => {
+    if (!state.active || !state.locked) return;
+    const link = e.target.closest("a");
+    if (link) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (guard?.isAiUrl(link.href)) {
+        showWarning("AI services are blocked during writing sessions.");
+      } else {
+        showWarning("Links are disabled during writing sessions.");
+      }
+    }
+  }, true);
+
+  document.addEventListener("auxclick", (e) => {
+    if (state.active && state.locked && e.button === 1) {
+      e.preventDefault();
+      showWarning("Opening links is blocked during writing sessions.");
+    }
+  });
 
   function showWarning(msg) {
     warningMessage.textContent = msg;
@@ -335,7 +702,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==================== TEXT FORMATTING ====================
 
   function canEdit() {
-    return state.active && state.locked;
+    // Draft (!active) or locked fullscreen session — not while session is paused.
+    return !state.active || state.locked;
   }
 
   function applyFormat(command, value = null) {
@@ -422,7 +790,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function applyLineHeight() {
     const lh = LINE_HEIGHTS[state.lineHeightIndex];
     editor.style.lineHeight = String(lh);
-    if (lineHeightBtn) lineHeightBtn.textContent = String(lh);
+    if (lineHeightGlyph) lineHeightGlyph.textContent = String(lh);
+    else if (lineHeightBtn) lineHeightBtn.textContent = String(lh);
   }
 
   function updateToolbarState() {
@@ -480,17 +849,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ==================== DARK MODE ====================
-
-  function toggleDarkMode() {
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    if (isDark) {
-      document.documentElement.removeAttribute("data-theme");
-      localStorage.setItem("darkMode", "false");
-    } else {
-      document.documentElement.setAttribute("data-theme", "dark");
-      localStorage.setItem("darkMode", "true");
-    }
-  }
+  // Theme is configured only in Settings via MinimeTheme (global).
 
   // ==================== KEYBOARD SHORTCUTS ====================
 
@@ -553,9 +912,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ==================== EVENT LISTENERS ====================
 
-  startSessionBtn.addEventListener("click", startSession);
+  startSessionBtn.addEventListener("click", openSessionPrep);
+  cancelPrepBtn?.addEventListener("click", closeSessionPrep);
+  scanDevicesBtn?.addEventListener("click", startPairingScan);
+  confirmStartBtn?.addEventListener("click", confirmStartSession);
+  resumeSessionBtn?.addEventListener("click", resumeSession);
   endSessionBtn.addEventListener("click", endSession);
   completeProjectBtn.addEventListener("click", completeProject);
+  toolbarCollapseBtn?.addEventListener("click", toggleSidebarCollapsed);
 
   if (saveSessionBtn) {
     saveSessionBtn.addEventListener("click", () => saveDocument());
@@ -563,10 +927,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (exitSessionBtn) {
     exitSessionBtn.addEventListener("click", endSession);
-  }
-
-  if (darkModeToggle) {
-    darkModeToggle.addEventListener("click", toggleDarkMode);
   }
 
   toolbarButtons.forEach((btn) => {
@@ -605,13 +965,23 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("fullscreenchange", onFullscreenChange, false);
 
   editor.addEventListener("input", () => {
+    if (!canEdit()) return;
     if (state.active && state.locked) {
-      updateMetrics();
-      if (statusIndicator) {
-        statusIndicator.textContent = "Unsaved...";
-        statusIndicator.classList.remove("saved");
-      }
-      debounceAutoSave();
+      purgeEditorContent();
+    }
+    updateMetrics();
+    if (statusIndicator) {
+      statusIndicator.textContent = "Unsaved...";
+      statusIndicator.classList.remove("saved");
+    }
+    debounceAutoSave();
+  });
+
+  editor.addEventListener("beforeinput", (e) => {
+    const blockedTypes = new Set(["insertFromPaste", "insertFromDrop", "insertFromYank"]);
+    if (blockedTypes.has(e.inputType)) {
+      e.preventDefault();
+      showWarning("Clipboard paste is prohibited on writing pages.");
     }
   });
 
@@ -626,53 +996,43 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   projectTitle.addEventListener("blur", () => {
-    if (state.active) debounceAutoSave();
+    debounceAutoSave();
   });
 
-  // ==================== PASTE BLOCKING ====================
+  // ==================== PASTE / COPY / CLIPBOARD ====================
+  // Hard blocking + permission gate live in clipboard-gate.js.
+  // Keep warnings here so the user sees why an action failed.
 
-  editor.addEventListener("paste", (e) => {
-    if (!state.active) return;
-    e.preventDefault();
-    showWarning("Pasting is blocked during writing sessions.");
-  });
-
-  document.addEventListener("paste", (e) => {
-    if (state.active) e.preventDefault();
-  });
-
-  // ==================== COPY BLOCKING ====================
-
-  editor.addEventListener("copy", (e) => {
-    if (state.active && state.locked) {
-      e.preventDefault();
-      showWarning("Copying is blocked during writing sessions.");
+  function warnClipboard(e, message) {
+    if (e?.defaultPrevented) {
+      showWarning(message);
     }
-  });
+  }
 
-  editor.addEventListener("cut", (e) => {
-    if (state.active && state.locked) {
-      e.preventDefault();
-      showWarning("Cut is blocked during writing sessions.");
-    }
-  });
-
-  document.addEventListener("copy", (e) => {
-    if (state.active && state.locked) e.preventDefault();
-  });
-
-  document.addEventListener("cut", (e) => {
-    if (state.active && state.locked) e.preventDefault();
-  });
+  document.addEventListener(
+    "paste",
+    (e) => warnClipboard(e, "Clipboard paste is prohibited on writing pages."),
+    true
+  );
+  document.addEventListener(
+    "copy",
+    (e) => warnClipboard(e, "Clipboard copy is prohibited on writing pages."),
+    true
+  );
+  document.addEventListener(
+    "cut",
+    (e) => warnClipboard(e, "Clipboard cut is prohibited on writing pages."),
+    true
+  );
 
   // ==================== SCREENSHOT & PAGE BLOCKING ====================
 
+  // Best-effort session reminders (browsers cannot fully block OS screenshots / new tabs).
   document.addEventListener("keydown", (e) => {
     if (!state.active || !state.locked) return;
 
     if (e.key === "PrintScreen" || e.code === "PrintScreen") {
-      e.preventDefault();
-      showWarning("Screenshots are blocked during writing sessions.");
+      showWarning("Screenshots may still be possible via the OS. Stay focused on this session.");
       return;
     }
 
@@ -688,32 +1048,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (e.key === "Escape") {
       e.preventDefault();
-      showWarning('Use "Exit session" in the toolbar to leave.');
+      showWarning('Use "Return to fullscreen" or "Exit session" if the lock overlay appears.');
       return;
     }
 
     if ((e.ctrlKey || e.metaKey) && e.key === "p") {
       e.preventDefault();
-      showWarning("Printing is blocked during writing sessions.");
+      showWarning("Printing is discouraged during protected sessions.");
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && (e.key === "t" || e.key === "n" || e.key === "w")) {
+      showWarning("Browser shortcuts may still open tabs. Session guards are best-effort only.");
     }
   });
 
   document.addEventListener("keyup", (e) => {
     if (!state.active || !state.locked) return;
-    if (e.ctrlKey && e.key === "PrintScreen") {
-      e.preventDefault();
-      showWarning("Screenshots are blocked during writing sessions.");
-    }
-  });
-
-  // ==================== GENERIC SECURITY BLOCKING ====================
-
-  document.addEventListener("click", (e) => {
-    if (!state.active) return;
-    const link = e.target.closest("a");
-    if (link && isAIDomain(link.href)) {
-      e.preventDefault();
-      showWarning("AI domain access blocked.");
+    if (e.key === "PrintScreen" || e.code === "PrintScreen") {
+      showWarning("Screenshots may still be possible via the OS. Stay focused on this session.");
     }
   });
 
@@ -725,13 +1078,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ==================== INIT ====================
 
+  if (guard) {
+    guard.setViolationHandler(showWarning);
+  }
+
   loadPreferences();
-  editor.contentEditable = "false";
-  editor.classList.add("editor-preview");
-  sideToolbar.style.display = "none";
-  lockOverlay.hidden = true;
-  metricsBar.hidden = true;
+  restoreSidebarCollapsed();
+  if (guard) {
+    guard.purgeEditor(editor);
+  }
+  if (devicesApi?.registerDevice) {
+    devicesApi.registerDevice();
+  }
+  applyDraftEditorMode();
   updateMetrics();
+  document.getElementById("clipboardGateScreen")?.remove();
+  document.querySelector(".app-shell")?.classList.remove("writer-pending");
 
   console.log("Writer ready:", project.title);
-});
+}

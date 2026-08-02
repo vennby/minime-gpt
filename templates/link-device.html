@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Link Device - MinimēGPT{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages.css') }}">
+<style>
+  .link-device-card {
+    max-width: 480px;
+    margin: 4rem auto;
+    padding: 2rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+  }
+  .link-device-card h1 { margin-top: 0; font-size: 1.5rem; }
+  .link-device-card p { color: var(--color-text-light); line-height: 1.6; }
+  .device-name-input {
+    width: 100%;
+    padding: 0.75rem;
+    margin: 1rem 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-light);
+  }
+  .consent-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin: 1.25rem 0;
+    padding: 1rem;
+    background: var(--color-bg-light);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+  }
+  .consent-row input { margin-top: 0.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="scroll-page-shell">
+  <div class="link-device-card" id="linkDeviceRoot" data-pairing-code="{{ code }}">
+    <h1>Link this device</h1>
+    <p>You're connecting a device for MinimēGPT session locks. You do not need to be signed in — a valid pairing code is enough. If you agree, this device can show a lock overlay while you write on your main computer.</p>
+    {% if requires_login %}
+    <p class="pairing-hint">Tip: stay on this page to finish linking. Opening the pairing link is enough; Google sign-in is optional.</p>
+    {% endif %}
+
+    <label for="deviceLabel">Device name</label>
+    <input id="deviceLabel" class="device-name-input" type="text" maxlength="100"
+           placeholder="e.g. My iPhone" value="">
+
+    <label class="consent-row">
+      <input type="checkbox" id="consentLock" required>
+      <span>I own this device and agree to let MinimēGPT lock it while I am in a protected writing session.</span>
+    </label>
+
+    <button id="linkDeviceBtn" class="btn primary" type="button" style="width:100%;">Link &amp; enable lock</button>
+    <p id="linkError" style="color: var(--color-error); display:none; margin-top:1rem;"></p>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/link-device.js') }}"></script>
+{% endblock %}

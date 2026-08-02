@@ -11,12 +11,13 @@
 ### Features offered by MinimēGPT
 
 - [x] Focus writing mode with fullscreen session lock behavior
-- [x] Uninterrupted Browsing, like how it always was!
-- [x] Popular paper formats available inbuilt!
-- [ ] Your brainstorming, late-night sessions, and all logged!
-- [ ] asd
-- [ ] asd
+- [x] Draft editing with autosave before a locked session
+- [x] Multi-device pairing + companion lock overlay
+- [x] Paper formats for PDF export (Letter, A4, Legal)
+- [x] Writing session history in Settings
+- [x] Share links with rotate / revoke
 
 ### Notes
 
-- Browser-only fullscreen locks are best-effort by design; OS/browser security policies can still override them.
+- Browser-only fullscreen locks and AI URL blocking are **best-effort**. The OS, other browsers, and disabled JavaScript are outside what a web app can control. See `docs/breaks/` for known limitations and fixes.
+- Set `SECRET_KEY` (or rely on the auto-generated `instance/secret_key` in development), plus `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`. Optionally set `REDIRECT_URI` and `PREFERRED_URL_SCHEME` (`http` or `https`).

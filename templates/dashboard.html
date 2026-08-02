@@ -8,7 +8,6 @@
 
 {% block content %}
 <main class="dashboard-layout">
-  <!-- Top Navigation Bar -->
   <nav class="dashboard-navbar">
     <div class="navbar-content">
       <h2 class="navbar-title">MinimēGPT</h2>
@@ -18,24 +17,19 @@
             <span class="profile-avatar">{{ user.name[0] }}</span>
           </button>
           <div id="profileDropdown" class="profile-dropdown hidden">
-            <a href="{{ url_for('dashboard') }}" class="dropdown-item">
-              Dashboard
-            </a>
-            <a href="{{ url_for('settings') }}" class="dropdown-item">
-              Settings
-            </a>
-            <a href="{{ url_for('logout') }}" class="dropdown-item">
-              Logout
-            </a>
+            <a href="{{ url_for('dashboard') }}" class="dropdown-item">Dashboard</a>
+            <a href="{{ url_for('settings') }}" class="dropdown-item">Settings</a>
+            <form method="post" action="{{ url_for('logout') }}" class="dropdown-item-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="dropdown-item dropdown-button">Logout</button>
+            </form>
           </div>
         </div>
       </div>
     </div>
   </nav>
 
-  <!-- Main Content Area -->
   <div class="dashboard-main">
-    <!-- Welcome Section -->
     <div class="welcome-section">
       <div class="welcome-content">
         <h1>Welcome, <span class="name-highlight">{{ user.name.split()[0] }}</span></h1>
@@ -43,11 +37,10 @@
       </div>
     </div>
 
-    <!-- Projects Section -->
     <section class="projects-section">
-      <!-- Projects Controls -->
       <div class="projects-controls-bar">
         <form method="post" action="{{ url_for('create_project') }}" class="create-form-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input name="title" type="text" placeholder="New project..." maxlength="160" required>
           <button class="btn primary btn-sm" type="submit">Create</button>
         </form>
@@ -66,10 +59,10 @@
         {% endif %}
       {% endwith %}
 
-      <!-- Projects Grid -->
       <div class="projects-grid">
-        {% if projects %}
-          {% for project in projects %}
+        {% if project_cards %}
+          {% for card in project_cards %}
+          {% set project = card.project %}
           <article class="project-card" data-title="{{ project.title|lower }}">
             <div class="project-card-header">
               <h3>{{ project.title }}</h3>
@@ -77,7 +70,7 @@
             <div class="project-card-metadata">
               <div class="metadata-item">
                 <span class="metadata-label">Words</span>
-                <span class="metadata-value">{{ (project.content.split()|length) }}</span>
+                <span class="metadata-value">{{ card.word_count }}</span>
               </div>
               <div class="metadata-item">
                 <span class="metadata-label">Last Edit</span>
@@ -86,7 +79,13 @@
             </div>
             <div class="project-card-actions">
               <a class="btn primary btn-sm" href="{{ url_for('write_project', project_id=project.id) }}">Continue Writing</a>
-              <button class="project-share-btn" onclick="shareProject({{ project.id }}, '{{ project.title }}')">🔗</button>
+              <button type="button" class="project-share-btn" data-share-project="{{ project.id }}" title="Copy share link">Share</button>
+              <button type="button" class="project-share-btn" data-rotate-share="{{ project.id }}" title="Rotate share link">Rotate</button>
+              <button type="button" class="project-share-btn" data-revoke-share="{{ project.id }}" title="Revoke share link">Revoke</button>
+              <form method="post" action="{{ url_for('delete_project', project_id=project.id) }}" class="inline-delete-form" data-confirm-delete="Delete this project permanently?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="project-share-btn danger" title="Delete project">Delete</button>
+              </form>
             </div>
           </article>
           {% endfor %}
@@ -99,94 +98,8 @@
     </section>
   </div>
 </main>
-
-<script>
-  // Share project function
-  async function shareProject(projectId, projectTitle) {
-    try {
-      const response = await fetch(`/api/projects/${projectId}/share`, { method: 'POST' });
-      const data = await response.json();
-      
-      if (data.share_url) {
-        // Copy to clipboard
-        navigator.clipboard.writeText(data.share_url).then(() => {
-          alert(`Share link copied to clipboard!\n\n${data.share_url}`);
-        }).catch(() => {
-          // Fallback: show link in prompt
-          prompt('Share link:', data.share_url);
-        });
-      }
-    } catch (error) {
-      alert('Failed to generate share link');
-    }
-  }
-
-  // Theme toggle with sun/moon icons
-  const themeToggle = document.getElementById('themeToggle');
-  const isDarkMode = localStorage.getItem('darkMode') === 'true';
-  
-  // Initialize theme icon
-  updateThemeIcon();
-  
-  function updateThemeIcon() {
-    const isDark = localStorage.getItem('darkMode') === 'true';
-    if (themeToggle) {
-      themeToggle.querySelector('.theme-icon').textContent = isDark ? '🌙' : '☀️';
-    }
-  }
-  
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function() {
-      const currentMode = localStorage.getItem('darkMode') === 'true';
-      const newMode = !currentMode;
-      
-      localStorage.setItem('darkMode', newMode);
-      
-      if (newMode) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      } else {
-        document.documentElement.removeAttribute('data-theme');
-      }
-      
-      updateThemeIcon();
-    });
-  }
-
-  // Profile dropdown menu
-  const profileMenuBtn = document.getElementById('profileMenuBtn');
-  const profileDropdown = document.getElementById('profileDropdown');
-
-  if (profileMenuBtn && profileDropdown) {
-    profileMenuBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      profileDropdown.classList.toggle('hidden');
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(e) {
-      if (!e.target.closest('.navbar-profile')) {
-        profileDropdown.classList.add('hidden');
-      }
-    });
-  }
-
-  // Project search functionality
-  const searchInput = document.getElementById('projectSearch');
-  if (searchInput) {
-    searchInput.addEventListener('input', function(e) {
-      const query = e.target.value.toLowerCase();
-      const projectCards = document.querySelectorAll('.project-card');
-      
-      projectCards.forEach(card => {
-        const title = card.getAttribute('data-title');
-        if (title.includes(query)) {
-          card.style.display = '';
-        } else {
-          card.style.display = 'none';
-        }
-      });
-    });
-  }
-</script>
 {% endblock %}
 
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

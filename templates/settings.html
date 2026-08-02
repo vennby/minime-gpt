@@ -174,10 +174,9 @@
     <h1>Account Settings</h1>
   </div>
 
-  <!-- Profile Section -->
   <div class="settings-section">
     <h2>Profile</h2>
-    <form id="profileForm" class="settings-form">
+    <form id="profileForm" class="settings-form" data-update-url="{{ url_for('update_profile') }}">
       <div class="form-group">
         <label for="nameInput">Full Name</label>
         <input id="nameInput" type="text" value="{{ user.name }}" maxlength="160" placeholder="Your name" required>
@@ -186,7 +185,6 @@
     </form>
   </div>
 
-  <!-- Account Information Section -->
   <div class="settings-section">
     <h2>Account Information</h2>
     <div class="info-item">
@@ -199,35 +197,62 @@
     </div>
   </div>
 
-  <!-- Theme Section -->
+  <div class="settings-section">
+    <h2>Writing sessions</h2>
+    <p style="color: var(--color-text-light); margin-bottom: 1rem;">
+      Recent protected sessions on your account (browser locks are best-effort).
+    </p>
+    {% if session_rows %}
+    <div class="session-log-list">
+      {% for row in session_rows %}
+      <div class="info-item">
+        <p class="info-label">{{ row.project_title }}{% if row.active %} · active{% endif %}</p>
+        <p class="info-value">
+          Started {{ row.started_at.strftime('%b %d, %Y %H:%M') if row.started_at else '—' }}
+          · {{ row.device_count }} device(s)
+          {% if row.ended_at %}
+          · Ended {{ row.ended_at.strftime('%b %d, %Y %H:%M') }}
+          {% endif %}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="info-value">No sessions logged yet.</p>
+    {% endif %}
+  </div>
+
   <div class="settings-section">
     <h2>Appearance</h2>
+    <p style="color: var(--color-text-light); margin-bottom: 1rem;">
+      Dark mode is controlled here and applies across the whole app (dashboard, writer, and settings).
+    </p>
     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0;">
       <label for="themeToggle" style="margin: 0; cursor: pointer;">Dark Mode</label>
-      <button id="themeToggle" class="theme-toggle-btn" aria-label="Toggle dark mode">
-        <span class="theme-icon">☀️</span>
+      <button id="themeToggle" class="theme-toggle-btn" type="button" data-theme-toggle aria-label="Toggle dark mode">
+        <span class="theme-icon">☀</span>
       </button>
     </div>
   </div>
 
-  <!-- Actions Section -->
   <div class="settings-section">
     <h2>Session</h2>
-    <a href="{{ url_for('logout') }}" class="btn secondary" style="display: block; text-align: center; width: 100%;">Sign Out</a>
+    <form method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="btn secondary" style="display: block; text-align: center; width: 100%;">Sign Out</button>
+    </form>
   </div>
 
-  <!-- Danger Zone -->
   <div class="settings-section delete-section">
     <h2>Danger Zone</h2>
     <p style="color: var(--color-text-light); margin-bottom: 1rem;">
       Deleting your account will permanently remove your account and all associated projects. This action cannot be undone.
     </p>
-    <button id="deleteAccountBtn" class="btn delete" style="width: 100%;">Delete Account Permanently</button>
+    <button id="deleteAccountBtn" class="btn delete" type="button" style="width: 100%;">Delete Account Permanently</button>
   </div>
 </div>
 </main>
 
-<!-- Delete account confirmation modal -->
 <div id="deleteModal" class="modal hidden">
   <div class="modal-overlay"></div>
   <div class="modal-content">
@@ -236,92 +261,14 @@
     <div class="modal-actions">
       <button id="cancelBtn" class="btn secondary" type="button">Cancel</button>
       <form method="post" action="{{ url_for('delete_account') }}" style="display: inline; flex: 1;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="btn delete" type="submit" style="width: 100%;">Delete Everything</button>
       </form>
     </div>
   </div>
 </div>
+{% endblock %}
 
-<script>
-  // Theme toggle
-  const themeToggle = document.getElementById('themeToggle');
-  const isDarkMode = localStorage.getItem('darkMode') === 'true';
-  
-  // Initialize theme icon
-  updateThemeIcon();
-  
-  function updateThemeIcon() {
-    const isDark = localStorage.getItem('darkMode') === 'true';
-    if (themeToggle) {
-      themeToggle.querySelector('.theme-icon').textContent = isDark ? '🌙' : '☀️';
-    }
-  }
-  
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function() {
-      const currentMode = localStorage.getItem('darkMode') === 'true';
-      const newMode = !currentMode;
-      
-      localStorage.setItem('darkMode', newMode);
-      
-      if (newMode) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      } else {
-        document.documentElement.removeAttribute('data-theme');
-      }
-      
-      updateThemeIcon();
-    });
-  }
-
-  // Profile form submission
-  const profileForm = document.getElementById('profileForm');
-  profileForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const nameInput = document.getElementById('nameInput');
-    
-    if (!nameInput.value.trim()) {
-      alert('Please enter a name');
-      return;
-    }
-    
-    // Send update to server
-    fetch('{{ url_for("update_profile") }}', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: nameInput.value.trim()
-      })
-    })
-    .then(response => {
-      if (response.ok) {
-        alert('Profile updated successfully!');
-        location.reload();
-      } else {
-        alert('Failed to update profile');
-      }
-    })
-    .catch(error => {
-      alert('Error updating profile');
-      console.error('Error:', error);
-    });
-  });
-
-  // Delete account functionality
-  document.getElementById('deleteAccountBtn').addEventListener('click', function() {
-    document.getElementById('deleteModal').classList.remove('hidden');
-  });
-
-  document.getElementById('cancelBtn').addEventListener('click', function() {
-    document.getElementById('deleteModal').classList.add('hidden');
-  });
-
-  document.getElementById('deleteModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-      this.classList.add('hidden');
-    }
-  });
-</script>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}

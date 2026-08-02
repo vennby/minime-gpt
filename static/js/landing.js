@@ -253,14 +253,5 @@ document.addEventListener('DOMContentLoaded', function() {
   if (canvas) {
     new BrainRenderer(canvas);
   }
-  
-  // Apply saved theme
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-});
-
-// Listen for theme changes
-window.addEventListener('themeChange', function(e) {
-  const theme = e.detail?.theme || localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', theme);
+  // Theme is owned by theme.js (minime_theme) — do not override here.
 });

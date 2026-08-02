@@ -3,22 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}MinimēGPT{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <script>
-      // Initialize dark mode from localStorage on page load
-      const darkMode = localStorage.getItem('darkMode') === 'true';
-      if (darkMode) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
+      (function () {
+        try {
+          var key = 'minime_theme';
+          var theme = localStorage.getItem(key);
+          if (!theme) {
+            if (localStorage.getItem('darkMode') === 'true' || localStorage.getItem('theme') === 'dark') {
+              theme = 'dark';
+            } else {
+              theme = 'light';
+            }
+            localStorage.setItem(key, theme);
+          }
+          if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+          else document.documentElement.removeAttribute('data-theme');
+        } catch (e) { /* ignore */ }
+      })();
     </script>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     {% block content %}{% endblock %}
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block extra_js %}{% endblock %}
+    {% if current_user %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/device-lock.css') }}">
+    <script src="{{ url_for('static', filename='js/device-coordinator.js') }}"></script>
+    {% endif %}
 </body>
 </html>
